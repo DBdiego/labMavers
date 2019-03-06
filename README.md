@@ -1,6 +1,6 @@
 # MAV Lab Exercise (labMavers repo)
 
-This respository contains the code used in the exercise to make a quadcopter fly autonomously.
+This respository contains the code used in the exercise to make a quadcopter fly autonomously. At least the additional modules that were made.
 
 
 
