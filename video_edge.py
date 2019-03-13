@@ -12,19 +12,16 @@ from scipy import signal
 
 
 
-
-vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4') 
+vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4')
 
 while True:
     success,frame = vidcap.read()
     if not success:
         break
-    
-#    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # I think there is a method to read the image directly in gray but this works for now
-    # gray_less_noise = signal.convolve2d(gray, anti_noise, boundary='symm', mode='same').astype(np.uint8) # applying the ones filter (from deep learning course) could be used instead if frame
-    edges = cv2.Canny(frame, 100, 200) # magic filter, Maybe changing 100, and 200 I dont know what they are yet
 
-    #Grass detection, if want to make it faster, comment this out till new_edges = ..., and use cv2.imshow('frame', edges) Grass only works for zoovideo3
+    edges = cv2.Canny(frame, 100, 200)
+
+    
     grassbool1 =  frame[:,:,1] < 220
     grassbool2 = frame[:,:,1] > 120
     grassbool3 = frame[:,:,0] < 200
@@ -32,6 +29,7 @@ while True:
     grassbool5 = frame[:,:,0] > 60
     grassbool6 = frame[:,:,2] > 90
     grass = (grassbool1*grassbool2*grassbool3*grassbool4*grassbool5*grassbool6*255).astype(np.uint8)
+
 
     boolarray = edges > 100
     boolgrass = grass > 250
@@ -43,8 +41,25 @@ while True:
     test2_array = np.concatenate((bool_object, zeros_array), axis =0)
     grass_over = (test1_array*test2_array*255).astype(np.uint8)
     over_grass = np.delete(grass_over, range(352,352+shift), 0)
+
     new_edges = (edges - over_grass).astype(np.uint8)
     
+    
+#    box = 30
+#    for i in range(int(255/box)+1):
+#        boolgray1 = gray>(255-box*(i+1))
+#        boolgray2 = gray<(255-box*i)
+#        gray[boolgray1*boolgray2] = 255-box*i if box*i > 0 else 0
+#    i_s = []
+#    edgebool = boolarray
+#    for i in range(len(gray[1,:])):
+#        edgelines = edges[:,3*i-2:3*i+2]/255
+#        
+#        if np.sum(edgelines) >50:
+#            i_s.append(2*i-1)
+#            print(3*i, np.sum(new_edges))
+##    gray[:,i_s] = 255
+#    new_gray = gray - clean_edges
 
     cv2.imshow('frame', new_edges)
     cv2.waitKey(1)
@@ -52,4 +67,11 @@ while True:
     if cv2.waitKey(1) and 0xFF == ord('q'):
         break
     
+small = np.zeros((80,80)).astype(np.uint8)
+#for i in range(len(small[:,1])): Do this with numpy instead, quicker
+#    for j in range(640):
+#         som += sum(gray[4*i:4*i+4, j]).astype(np.uint16)
+#         if (j+ 1) % 8 == 0 and j != 0:
+#             small[i,int((j+1)/8-1)] = som/32
+#             som = 0
 
