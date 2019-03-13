@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 import pdb
 from scipy import signal
-from matplotlib import pyplot as plt
+
 
 
 
@@ -52,5 +52,4 @@ while True:
     if cv2.waitKey(1) and 0xFF == ord('q'):
         break
     
-cv2.waitKey(0)
-small = np.zeros((80,80)).astype(np.uint8)
+
