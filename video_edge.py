@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar  9 09:35:47 2019
-
-@author: Stavrow
-"""
 import glob
 import numpy as np
 import cv2
@@ -13,50 +7,61 @@ import time
 
 
 # Hyper parameters
-kernel_value = 20
-number_areas = 4
-delay = 0.0
+kernel_value = 20      ### Square that is averaged out for less noise
+number_areas = 4       ### Number of vertical areas created for the centroids
+delay        = 0.0     ### delay in seconds for better observation of algorithm performance
+num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
 
 #Bools
-show_ground   = 1
-show_edges    = 0
-show_off_mode = 1
+show_ground   = 1   # Show comparison of original video with green edges and colour filter with direction proposal
+show_edges    = 0   # Show edges (Black and White)
+show_off_mode = 1   # If turned of, none of the images is shown. This is to evaluate performance
 
 
-# Parameters regarding the indicator drawings
-step   = 12
+# Parameters regarding the indicator drawings (for the red cross and the blue dots on show_ground comparison)
+# advised not to change these
+step   = 12  
 gap    =  5
 lw     =  1
 gap_in =  3
 
 
+# Importing and reading video
 vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4')
+
+# Creating kernel for averageing pixel windows
 kernel = np.ones((kernel_value, kernel_value),np.uint8)
 
+# Font for percentages on show_ground comparison image
 font = cv2.FONT_HERSHEY_SIMPLEX
 
+
+# Looping through frames of the video
 while True:
     success, frame = vidcap.read()
     if not success:
+        print('failed to find/read video, please check give file name')
         break
 
+    # Adding delay
     time.sleep(delay)
 
+    # Starting performance clock
     start_time = time.time()
-    
+
+    # Converting RGB to YUV since Bebob works in YUV
     yuv_orig = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
     yuv = cv2.morphologyEx(yuv_orig, cv2.MORPH_CLOSE, kernel)
-    #yuv = yuv_orig
 
-    ############## COLOR FILTER ###############
-    # y-value check
+    # Color Filer (YUV)
+    # --> y-value check
     b1 = yuv[:,:,0] > 50  #int(0.30 * 255)
     b2 = yuv[:,:,0] < 240 #int(0.95 * 255)
 
-    # u-value check
+    # -->u-value check
     b3 = yuv[:,:,1] < 140
     
-    # v-value check
+    # -->v-value check
     b4 = yuv[:,:,2] < 110
 
     grass = (b1 * b2 * b3 * b4 * 255).astype(np.uint8)
@@ -75,6 +80,7 @@ while True:
     percentages = []
     area_width = int(img_width/number_areas)
 
+    # Computing Centroids of white areas in different sub-areas of the frame
     for i in range(number_areas):
         v_lines_x = area_width * (i+1)
         new_RGB[:, v_lines_x-1:v_lines_x+1] = [255, 0, 0]
@@ -110,16 +116,13 @@ while True:
     x_goal = cx_data[goal_index]
 
     y_column = grass[:,x_goal][::-1]
-    
-    num_pixels_above = 10
-    #step = int(len(y_column)/num_pixels_above)
-    
+
+
+    # Determining y-position of dirction
     for i in range(len(y_column)-cy_data[goal_index], len(y_column), num_pixels_above):
         if np.sum(y_column[i:i+num_pixels_above])/255 == num_pixels_above:
             y_goal = len(y_column) - (i+num_pixels_above)
-            #print(i, np.sum(y_column[i:i+num_pixels_above])/255)
-        
-    #y_goal = c_goal[1]
+
 
     # Drawing indicator of choice (not important in real life)
     if show_off_mode:
@@ -132,62 +135,16 @@ while True:
 
         
 
-    '''
-
-    # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # I think there is a method to read the image directly in gray but this works for now
-    # gray_less_noise = signal.convolve2d(gray, anti_noise, boundary='symm', mode='same').astype(np.uint8) # applying the ones filter (from deep learning course) could be used instead if frame
-    edges = cv2.Canny(frame, 100, 200) # magic filter, Maybe changing 100, and 200 I dont know what they are yet
-
-    yuv = cv2.morphologyEx(yuv, cv2.MORPH_CLOSE, kernel)
-
-    #Grass detection, if want to make it faster, comment this out till new_edges = ..., and use cv2.imshow('frame', edges) Grass only works for zoovideo3
-    #print(yuv[245:255, 315:325])
-    # y-value check
-    grassbool1 = yuv[:,:,0] > 75  #int(0.30 * 255)
-    grassbool2 = yuv[:,:,0] < 200 #int(0.95 * 255)
-
-    # u-value check
-    grassbool3 = yuv[:,:,1] < 140
-    
-    # v-value check
-    grassbool4 = yuv[:,:,2] < 110
-    '''
-    #grassbool3 = yuv[:,:,0] < 200
-    #grassbool4 = yuv[:,:,2] < 200
-    #grassbool5 = yuv[:,:,0] > 60
-    #grassbool6 = yuv[:,:,2] > 90
-    '''
-    grassbool1 = frame[:,:,1] < 220
-    grassbool2 = frame[:,:,1] > 120
-    grassbool3 = frame[:,:,0] < 200
-    grassbool4 = frame[:,:,2] < 200
-    grassbool5 = frame[:,:,0] > 60
-    grassbool6 = frame[:,:,2] > 90
-    '''
-    # grass = (grassbool1*grassbool2*grassbool3*grassbool4*255).astype(np.uint8) #*grassbool3*grassbool4*grassbool5*grassbool6*255).astype(np.uint8)
-    # grass = (grassbool1*grassbool2*255).astype(np.uint8)
-
-    '''
-    boolarray = edges > 100
-    boolgrass = grass > 250
-    shift = 50
-    zeros_array = np.zeros((shift,640)).astype(int)
-    bool_object = boolarray*1
-    bool_grass  = (grass > 250)*1
-    test1_array = np.concatenate(( zeros_array, bool_grass), axis=0)
-    test2_array = np.concatenate((bool_object, zeros_array), axis=0)
-    grass_over = (test1_array*test2_array*255).astype(np.uint8)
-    over_grass = np.delete(grass_over, range(352,352+shift), 0)
-    new_edges = (edges - over_grass).astype(np.uint8)
-    '''
     print(time.time() - start_time)
     original_RGB = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
 
     if show_off_mode:
+        
         # Adding edges on both original and processed frame
-        frame[edges>0]   = [0, 0, 255]
+        frame  [edges>0] = [0, 0, 255]
         new_RGB[edges>0] = [0, 0, 255]
-
+        
+        #creatig a comparison frame (gluing both original and processed)
         comparison = np.hstack((frame, new_RGB))
         
         if show_ground:
@@ -204,3 +161,66 @@ while True:
         break
     
 cv2.destroyAllWindows()
+
+
+
+
+
+
+
+
+
+
+
+'''
+OLD CODE SNIPPETS
+'''
+
+'''
+
+# gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # I think there is a method to read the image directly in gray but this works for now
+# gray_less_noise = signal.convolve2d(gray, anti_noise, boundary='symm', mode='same').astype(np.uint8) # applying the ones filter (from deep learning course) could be used instead if frame
+edges = cv2.Canny(frame, 100, 200) # magic filter, Maybe changing 100, and 200 I dont know what they are yet
+
+yuv = cv2.morphologyEx(yuv, cv2.MORPH_CLOSE, kernel)
+
+#Grass detection, if want to make it faster, comment this out till new_edges = ..., and use cv2.imshow('frame', edges) Grass only works for zoovideo3
+#print(yuv[245:255, 315:325])
+# y-value check
+grassbool1 = yuv[:,:,0] > 75  #int(0.30 * 255)
+grassbool2 = yuv[:,:,0] < 200 #int(0.95 * 255)
+
+# u-value check
+grassbool3 = yuv[:,:,1] < 140
+
+# v-value check
+grassbool4 = yuv[:,:,2] < 110
+'''
+#grassbool3 = yuv[:,:,0] < 200
+#grassbool4 = yuv[:,:,2] < 200
+#grassbool5 = yuv[:,:,0] > 60
+#grassbool6 = yuv[:,:,2] > 90
+'''
+grassbool1 = frame[:,:,1] < 220
+grassbool2 = frame[:,:,1] > 120
+grassbool3 = frame[:,:,0] < 200
+grassbool4 = frame[:,:,2] < 200
+grassbool5 = frame[:,:,0] > 60
+grassbool6 = frame[:,:,2] > 90
+'''
+# grass = (grassbool1*grassbool2*grassbool3*grassbool4*255).astype(np.uint8) #*grassbool3*grassbool4*grassbool5*grassbool6*255).astype(np.uint8)
+# grass = (grassbool1*grassbool2*255).astype(np.uint8)
+
+'''
+boolarray = edges > 100
+boolgrass = grass > 250
+shift = 50
+zeros_array = np.zeros((shift,640)).astype(int)
+bool_object = boolarray*1
+bool_grass  = (grass > 250)*1
+test1_array = np.concatenate(( zeros_array, bool_grass), axis=0)
+test2_array = np.concatenate((bool_object, zeros_array), axis=0)
+grass_over = (test1_array*test2_array*255).astype(np.uint8)
+over_grass = np.delete(grass_over, range(352,352+shift), 0)
+new_edges = (edges - over_grass).astype(np.uint8)
+'''
