@@ -12,22 +12,28 @@ from scipy import signal
 import time
 
 
-
+# Hyper parameters
 kernel_value = 20
 number_areas = 4
 delay = 0.0
 
-font = cv2.FONT_HERSHEY_SIMPLEX
+#Bools
+show_ground   = 1
+show_edges    = 0
+show_off_mode = 1
 
 
-kernel = np.ones((kernel_value, kernel_value),np.uint8)
+# Parameters regarding the indicator drawings
+step   = 12
+gap    =  5
+lw     =  1
+gap_in =  3
+
 
 vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4')
+kernel = np.ones((kernel_value, kernel_value),np.uint8)
 
-show_ground = 1
-show_edges  = 0
-
-
+font = cv2.FONT_HERSHEY_SIMPLEX
 
 while True:
     success, frame = vidcap.read()
@@ -40,10 +46,12 @@ while True:
     
     yuv_orig = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
     yuv = cv2.morphologyEx(yuv_orig, cv2.MORPH_CLOSE, kernel)
+    #yuv = yuv_orig
 
+    ############## COLOR FILTER ###############
     # y-value check
-    b1 = yuv[:,:,0] > 70  #int(0.30 * 255)
-    b2 = yuv[:,:,0] < 200 #int(0.95 * 255)
+    b1 = yuv[:,:,0] > 50  #int(0.30 * 255)
+    b2 = yuv[:,:,0] < 240 #int(0.95 * 255)
 
     # u-value check
     b3 = yuv[:,:,1] < 140
@@ -52,39 +60,32 @@ while True:
     b4 = yuv[:,:,2] < 110
 
     grass = (b1 * b2 * b3 * b4 * 255).astype(np.uint8)
-    edges = cv2.Canny(grass, 100, 200)
+
+
+    # Edge detection (only needed when displaying image)
+    if show_off_mode:
+        edges = cv2.Canny(grass, 100, 200)
 
     
     img_height, img_width = np.shape(grass)
-
-
-    y, x = np.nonzero(grass)
-    x_goal = x[np.argmin(y)]
-    y_goal = y[np.argmin(y)]
-
-    
-    step  = 12
-    gap   = 5
-    lw    = 1
-
-    gap_in = 3
-
     new_RGB = cv2.cvtColor(grass, cv2.COLOR_GRAY2RGB)
 
-    c_data = []
+    cy_data = []
+    cx_data = []
     percentages = []
     area_width = int(img_width/number_areas)
-    
 
-    
     for i in range(number_areas):
         v_lines_x = area_width * (i+1)
         new_RGB[:, v_lines_x-1:v_lines_x+1] = [255, 0, 0]
 
         local_grass_area = grass[:, i*area_width:(i+1)*area_width]
-        
-        perc = np.sum(local_grass_area)/(img_width * img_height)
+
+        # Percentage that tis "green" compared to total area
+        perc = (np.sum(local_grass_area)/255)/(area_width * img_height)*100
         perc_text = str(round(perc, 1))+'%'
+
+        # Moment of inertia of area
         M = cv2.moments(local_grass_area)
         if M["m00"]:
             cx = int(M["m10"] / M["m00"]) + v_lines_x - area_width
@@ -93,23 +94,41 @@ while True:
             cx = 0
             cy = 0
 
-        c_data.append([cx, cy])
+        # Append data for decision purposes later
+        cx_data.append(cx)
+        cy_data.append(cy)
         percentages.append(perc)
 
-        new_RGB[cy-gap_in:cy+gap_in, cx-gap_in:cx+gap_in] = [255, 0, 0]
-
+        if show_off_mode:
+            # Drawing computations on the image (not important in real life)
+            new_RGB[cy-gap_in:cy+gap_in, cx-gap_in:cx+gap_in] = [255, 0, 0]
+    
         cv2.putText(new_RGB, perc_text, (int(v_lines_x-3*area_width/4),100), font, 0.5,(255,255,255),2,cv2.LINE_AA)
 
-    c_goal = c_data[np.argmax(percentages)]
-    x_goal = c_goal[0]
-    y_goal = c_goal[1]
+    # Defining the goals
+    goal_index = np.argmax(np.array(percentages)*np.array(cy_data))
+    x_goal = cx_data[goal_index]
+
+    y_column = grass[:,x_goal][::-1]
     
-    color = [0, 0, 255]
-    new_RGB[y_goal-step-gap:y_goal-gap     , x_goal-lw:x_goal+lw] = color
-    new_RGB[y_goal+gap     :y_goal+step+gap, x_goal-lw:x_goal+lw] = color
+    num_pixels_above = 10
+    #step = int(len(y_column)/num_pixels_above)
     
-    new_RGB[y_goal-lw:y_goal+lw , x_goal-gap-step:x_goal-gap     ] = color
-    new_RGB[y_goal-lw:y_goal+lw , x_goal+gap     :x_goal+gap+step] = color
+    for i in range(len(y_column)-cy_data[goal_index], len(y_column), num_pixels_above):
+        if np.sum(y_column[i:i+num_pixels_above])/255 == num_pixels_above:
+            y_goal = len(y_column) - (i+num_pixels_above)
+            #print(i, np.sum(y_column[i:i+num_pixels_above])/255)
+        
+    #y_goal = c_goal[1]
+
+    # Drawing indicator of choice (not important in real life)
+    if show_off_mode:
+        color = [0, 0, 255]
+        new_RGB[y_goal-step-gap:y_goal-gap     , x_goal-lw:x_goal+lw] = color
+        new_RGB[y_goal+gap     :y_goal+step+gap, x_goal-lw:x_goal+lw] = color
+        
+        new_RGB[y_goal-lw:y_goal+lw , x_goal-gap-step:x_goal-gap     ] = color
+        new_RGB[y_goal-lw:y_goal+lw , x_goal+gap     :x_goal+gap+step] = color
 
         
 
@@ -163,21 +182,19 @@ while True:
     '''
     print(time.time() - start_time)
     original_RGB = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
-    
-    frame[edges>0] = [0, 0, 255]
-    new_RGB[edges>0] = [0, 0, 255]
-    
-    #cv2.imshow('frame', new_edges)
-    #grass[245:255, 315:325] = 100
-    #grass[250, 370] = 0
 
-    comparison = np.hstack((frame, new_RGB))
-    #cv2.imshow('frame', grass)
-    if show_ground:
-        cv2.imshow('frame', comparison)
+    if show_off_mode:
+        # Adding edges on both original and processed frame
+        frame[edges>0]   = [0, 0, 255]
+        new_RGB[edges>0] = [0, 0, 255]
+
+        comparison = np.hstack((frame, new_RGB))
         
-    elif show_edges:
-        cv2.imshow('frame', edges)
+        if show_ground:
+            cv2.imshow('frame', comparison)
+            
+        elif show_edges:
+            cv2.imshow('frame', edges)
         
     cv2.waitKey(1)
     
