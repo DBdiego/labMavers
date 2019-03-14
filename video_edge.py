@@ -36,10 +36,10 @@ while True:
 
     time.sleep(delay)
 
-    
     start_time = time.time()
-    yuv = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
-    yuv = cv2.morphologyEx(yuv, cv2.MORPH_CLOSE, kernel)
+    
+    yuv_orig = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
+    yuv = cv2.morphologyEx(yuv_orig, cv2.MORPH_CLOSE, kernel)
 
     # y-value check
     b1 = yuv[:,:,0] > 70  #int(0.30 * 255)
@@ -54,6 +54,7 @@ while True:
     grass = (b1 * b2 * b3 * b4 * 255).astype(np.uint8)
     edges = cv2.Canny(grass, 100, 200)
 
+    
     img_height, img_width = np.shape(grass)
 
 
@@ -160,22 +161,27 @@ while True:
     over_grass = np.delete(grass_over, range(352,352+shift), 0)
     new_edges = (edges - over_grass).astype(np.uint8)
     '''
+    print(time.time() - start_time)
+    original_RGB = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
     
-    #new_RGB = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
+    frame[edges>0] = [0, 0, 255]
+    new_RGB[edges>0] = [0, 0, 255]
+    
     #cv2.imshow('frame', new_edges)
     #grass[245:255, 315:325] = 100
     #grass[250, 370] = 0
 
+    comparison = np.hstack((frame, new_RGB))
     #cv2.imshow('frame', grass)
     if show_ground:
-        cv2.imshow('frame', new_RGB)
+        cv2.imshow('frame', comparison)
         
     elif show_edges:
         cv2.imshow('frame', edges)
         
     cv2.waitKey(1)
     
-    print(time.time() - start_time)
+    
     
     if cv2.waitKey(1) and 0xFF == ord('q'):
         break
