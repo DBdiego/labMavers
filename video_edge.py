@@ -7,9 +7,9 @@ import time
 
 
 # Hyper parameters
-kernel_value = 20      ### Square that is averaged out for less noise
-number_areas = 4       ### Number of vertical areas created for the centroids
-delay        = 0.0     ### delay in seconds for better observation of algorithm performance
+kernel_value = 30       ### Square that is averaged out for less noise
+number_areas = 5       ### Number of vertical areas created for the centroids
+delay        = 0.1     ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
 
 #Bools
@@ -27,7 +27,7 @@ gap_in =  3
 
 
 # Importing and reading video
-vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4')
+vidcap = cv2.VideoCapture('./Videos/zoovideo6.mp4')
 
 # Creating kernel for averageing pixel windows
 kernel = np.ones((kernel_value, kernel_value),np.uint8)
@@ -40,7 +40,7 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 while True:
     success, frame = vidcap.read()
     if not success:
-        print('failed to find/read video, please check give file name')
+        print('Video Finished')
         break
 
     # Adding delay
@@ -52,10 +52,11 @@ while True:
     # Converting RGB to YUV since Bebob works in YUV
     yuv_orig = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
     yuv = cv2.morphologyEx(yuv_orig, cv2.MORPH_CLOSE, kernel)
-
+    #yuv = yuv_orig
+    
     # Color Filer (YUV)
     # --> y-value check
-    b1 = yuv[:,:,0] > 50  #int(0.30 * 255)
+    b1 = yuv[:,:,0] > 70  #int(0.30 * 255)
     b2 = yuv[:,:,0] < 240 #int(0.95 * 255)
 
     # -->u-value check
@@ -121,7 +122,11 @@ while True:
     # Determining y-position of dirction
     for i in range(len(y_column)-cy_data[goal_index], len(y_column), num_pixels_above):
         if np.sum(y_column[i:i+num_pixels_above])/255 == num_pixels_above:
-            y_goal = len(y_column) - (i+num_pixels_above)
+            coordinate = len(y_column) - (i+num_pixels_above)
+            
+            # Check for y-position not to bee too far from centroid (max 0.5 of a frame size)
+            if (cy_data[goal_index] - coordinate)/len(y_column) <= 0.3:
+                y_goal = len(y_column) - (i+num_pixels_above)
 
 
     # Drawing indicator of choice (not important in real life)
@@ -135,7 +140,7 @@ while True:
 
         
 
-    print(time.time() - start_time)
+    #print(time.time() - start_time)
     original_RGB = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
 
     if show_off_mode:
