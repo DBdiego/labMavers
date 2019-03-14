@@ -18,7 +18,10 @@ pull    ```git pull```
 
 get status  ```git status```
 
+add content (before commit) ```git add ./"``` (add all files, -u only changed files, or manually name of file)
+
 commit  ```git commit -a -m "commit message"```
 
 push  ```git push```
 
+Check difference between added files and not added files ```git pull```
