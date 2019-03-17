@@ -4,7 +4,13 @@ import cv2
 import pdb
 from scipy import signal
 import time
+import os
 
+path = './Videos/Nikhil_the_best_auto'
+files42 = [ f for f in sorted(glob.glob(os.path.join( path + '/' + '*.jpg'))) if len(f) == 42]
+files43 = [ f for f in sorted(glob.glob(os.path.join( path + '/' + '*.jpg'))) if len(f) == 43]
+all_files = files42 + files43
+frames = [cv2.imread(image) for image in all_files]
 
 # Hyper parameters
 kernel_value = 30       ### Square that is averaged out for less noise
@@ -27,7 +33,7 @@ gap_in =  3
 
 
 # Importing and reading video
-vidcap = cv2.VideoCapture('./Videos/zoovideo6.mp4')
+#vidcap = cv2.VideoCapture('./Videos/zoovideo6.mp4')
 
 # Creating kernel for averageing pixel windows
 kernel = np.ones((kernel_value, kernel_value),np.uint8)
@@ -37,13 +43,15 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 
 
 # Looping through frames of the video
-while True:
-    success, frame = vidcap.read()
-    if not success:
-        print('Video Finished')
-        break
-
-    # Adding delay
+#------------------------------ 
+#while True: ONLY REQUIRED WHEN USING A REAL VIDEO
+#    succescs, frame = vidcap.read()
+#    if not success:
+#        print('Video Finished')
+#        break
+#---------------------------------
+for frame in frames:
+    # Adding delay (could also be done by changing waitKey(1) to a bigger number)
     time.sleep(delay)
 
     # Starting performance clock
