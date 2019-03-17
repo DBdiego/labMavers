@@ -64,14 +64,14 @@ for frame in frames:
     
     # Color Filer (YUV)
     # --> y-value check
-    b1 = yuv[:,:,0] > 70  #int(0.30 * 255)
-    b2 = yuv[:,:,0] < 240 #int(0.95 * 255)
+    b1 = yuv[:,:,0] > 80  #int(0.30 * 255)
+    b2 = yuv[:,:,0] < 100 #int(0.95 * 255)
 
     # -->u-value check
     b3 = yuv[:,:,1] < 140
     
     # -->v-value check
-    b4 = yuv[:,:,2] < 110
+    b4 = yuv[:,:,2] < 135
 
     grass = (b1 * b2 * b3 * b4 * 255).astype(np.uint8)
 
@@ -137,8 +137,10 @@ for frame in frames:
                 y_goal = len(y_column) - (i+num_pixels_above)
 
 
-    # Drawing indicator of choice (not important in real life)
+
+    # Drawing indicator of choice (not important in real life) DIEGO X AND Y ARE SWITCHES WITH THIS CAMEREA
     if show_off_mode:
+        y_goal = 10 # AN ERROR OCCURS, Y_GOAL IS NOT DEFINED, DIEGO HAVE A LOOK PLEASE
         color = [0, 0, 255]
         new_RGB[y_goal-step-gap:y_goal-gap     , x_goal-lw:x_goal+lw] = color
         new_RGB[y_goal+gap     :y_goal+step+gap, x_goal-lw:x_goal+lw] = color
