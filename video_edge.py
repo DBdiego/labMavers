@@ -7,7 +7,7 @@ import time
 
 
 # Hyper parameters
-kernel_value = 30       ### Square that is averaged out for less noise
+kernel_value = 15      ### Square that is averaged out for less noise
 number_areas = 5       ### Number of vertical areas created for the centroids
 delay        = 0.1     ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
@@ -27,7 +27,7 @@ gap_in =  3
 
 
 # Importing and reading video
-vidcap = cv2.VideoCapture('./Videos/zoovideo6.mp4')
+vidcap = cv2.VideoCapture('./Videos/zoovideo3.mp4')
 
 # Creating kernel for averageing pixel windows
 kernel = np.ones((kernel_value, kernel_value),np.uint8)
@@ -37,12 +37,22 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 
 
 # Looping through frames of the video
+success = True
+frame_index = 0
+max_frame_index = 581
 while True:
     success, frame = vidcap.read()
+    if frame_index <= max_frame_index:
+        file_name = './Videos/frames/'+str(frame_index)+' .jpg'
+        frame = cv2.imread('./Videos/frames/'+str(frame_index)+' .jpg', 1)
     if not success:
         print('Video Finished')
         break
+        
 
+    if frame_index == max_frame_index:
+        success = False
+    
     # Adding delay
     time.sleep(delay)
 
@@ -52,18 +62,19 @@ while True:
     # Converting RGB to YUV since Bebob works in YUV
     yuv_orig = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
     yuv = cv2.morphologyEx(yuv_orig, cv2.MORPH_CLOSE, kernel)
+    #cv2.imshow('frame', yuv_orig)
     #yuv = yuv_orig
     
     # Color Filer (YUV)
     # --> y-value check
-    b1 = yuv[:,:,0] > 70  #int(0.30 * 255)
-    b2 = yuv[:,:,0] < 240 #int(0.95 * 255)
+    b1 = yuv[:,:,0] > 2  #70 #30  #int(0.30 * 255)
+    b2 = yuv[:,:,0] < 110 #200#110 #int(0.95 * 255)
 
     # -->u-value check
-    b3 = yuv[:,:,1] < 140
+    b3 = yuv[:,:,1] < 140 #140
     
     # -->v-value check
-    b4 = yuv[:,:,2] < 110
+    b4 = yuv[:,:,2] < 130 #110
 
     grass = (b1 * b2 * b3 * b4 * 255).astype(np.uint8)
 
@@ -118,7 +129,8 @@ while True:
 
     y_column = grass[:,x_goal][::-1]
 
-
+    y_goal = cy_data[goal_index]
+    
     # Determining y-position of dirction
     for i in range(len(y_column)-cy_data[goal_index], len(y_column), num_pixels_above):
         if np.sum(y_column[i:i+num_pixels_above])/255 == num_pixels_above:
@@ -159,6 +171,7 @@ while True:
             cv2.imshow('frame', edges)
         
     cv2.waitKey(1)
+    frame_index += 1
     
     
     
