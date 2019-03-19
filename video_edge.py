@@ -9,7 +9,7 @@ import time
 # Hyper parameters
 kernel_value = 18      ### Square that is averaged out for less noise
 number_areas = 5       ### Number of vertical areas created for the centroids
-delay        = 0.0     ### delay in seconds for better observation of algorithm performance
+delay        = 0.1     ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
 side_pixels_sliced = 1
 min_ground_pixels = 600
@@ -20,8 +20,10 @@ v_fov = 70           #[deg]
 m_per_pixel_h = 0.02 #[m/px]
 
 # State vars
-altitude = 1.5 # [m]
-
+altitude = 1.5     # [m]
+yaw_quad = np.pi/2
+x_quad   = 0
+y_quad   = 0
 
 #Bools
 show_ground   = 1   # Show comparison of original video with green edges and colour filter with direction proposal
@@ -33,13 +35,22 @@ show_off_mode = 1   # If turned of, none of the images is shown. This is to eval
 # advised not to change these
 step   = 12  
 gap    =  5
-lw     =  1
+lw     =  2
 gap_in =  3
 
 
 # out-of-the-loop coordinate calculations
 tan_gamma     = np.tan(np.pi/2 - np.radians(v_fov/2))
 dist_to_frame = altitude * tan_gamma
+
+K = np.array([[781.3524863867165, 0.0              , 794.7118000552183],
+              [0.0              , 779.5071163774452, 561.3314451453386],
+              [0.0              , 0.0              , 1.0              ]])
+
+D = np.array([[-0.042595202508066574],
+              [0.031307765215775184],
+              [-0.04104704724832258],
+              [0.015343014605793324]])
 
 
 # Importing and reading video
@@ -50,8 +61,6 @@ kernel = np.ones((kernel_value, kernel_value),np.uint8)
 
 # Font for percentages on show_ground comparison image
 font = cv2.FONT_HERSHEY_SIMPLEX
-
-
 
 
 # Looping through frames of the video
@@ -71,6 +80,7 @@ while True:
     if frame_index == max_frame_index:
         success = False
 
+
     frame = frame[:, side_pixels_sliced:-side_pixels_sliced]
     
     # Adding delay
@@ -89,14 +99,14 @@ while True:
     
     # Color Filer (YUV)
     # --> y-value check
-    b1 = yuv[:,:,0] > 2   #70 #30  #int(0.30 * 255)
-    b2 = yuv[:,:,0] < 110 #200#110 #int(0.95 * 255)
+    b1 = yuv[:,:,0] > 0   #70 #30  #int(0.30 * 255)
+    b2 = yuv[:,:,0] < 150 #200#110 #int(0.95 * 255)
 
     # -->u-value check
-    b3 = yuv[:,:,1] < 140 #140
+    b3 = yuv[:,:,1] < 135 #140
     
     # -->v-value check
-    b4 = yuv[:,:,2] < 130 #110
+    b4 = yuv[:,:,2] < 135 #110
 
     grass_binary = b1 * b2 * b3 * b4 
     grass = (grass_binary * 255).astype(np.uint8)
@@ -128,7 +138,6 @@ while True:
 
             # Percentage that tis "green" compared to total area
             perc = (np.sum(local_grass_area))/(area_width * img_height)*100
-            perc_text = str(round(perc, 1))+'%'
 
             # Moment of inertia of area
             M = cv2.moments(local_grass_area)
@@ -147,7 +156,7 @@ while True:
             if show_off_mode:
                 # Drawing computations on the image (not important in real life)
                 new_RGB[cy-gap_in:cy+gap_in, cx-gap_in:cx+gap_in] = [255, 0, 0]
-        
+                perc_text = str(round(perc, 1))+'%'
                 cv2.putText(new_RGB, perc_text, (int(v_lines_x-3*area_width/4),100), font, 0.5,(255,255,255),2,cv2.LINE_AA)
 
         # Defining the goals
@@ -181,13 +190,17 @@ while True:
         y_frame  = img_height - y_goal
         y_center = y_goal - img_height/2
         p = y_frame/y_center * altitude * tan_gamma
-        distance = (dist_to_frame + p)#/np.cos(required_rotation)
+        distance = (dist_to_frame + p)/np.cos(required_rotation)
         
     else:
         distance = 0
         required_rotation = 0
-    print(round(distance, 2), 'm')#, round(np.degrees(required_rotation), 2), round(np.degrees(required_rotation2), 2))
+        
+    resulting_angle = yaw_quad - required_rotation
+    x_i_direction = x_quad + distance * np.cos(resulting_angle)
+    y_i_direction = y_quad + distance * np.sin(resulting_angle)
 
+    print(round(distance, 2), 'm', round(np.degrees(resulting_angle), 2), [round(x_i_direction, 2), round(y_i_direction, 2)])
 
 
 
@@ -214,7 +227,7 @@ while True:
 
         if lost:
             new_RGB[0:30, 0:-1] = [100,100,100]
-            cv2.putText(new_RGB, 'LOST', (int(img_width*0.45),20), font, 0.5,(255,255,255),2,cv2.LINE_AA)
+            cv2.putText(new_RGB, 'LOST', (int(img_width*0.44),20), font, 0.5,(255,255,255),2,cv2.LINE_AA)
 
 
 
