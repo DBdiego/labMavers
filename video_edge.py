@@ -9,7 +9,7 @@ import time
 # Hyper parameters
 kernel_value = 18      ### Square that is averaged out for less noise
 number_areas = 5       ### Number of vertical areas created for the centroids
-delay        = 0.1     ### delay in seconds for better observation of algorithm performance
+delay        = 0.0     ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
 side_pixels_sliced = 1
 min_ground_pixels = 600
@@ -29,6 +29,7 @@ y_quad   = 0
 show_ground   = 1   # Show comparison of original video with green edges and colour filter with direction proposal
 show_edges    = 0   # Show edges (Black and White)
 show_off_mode = 1   # If turned of, none of the images is shown. This is to evaluate performance
+save_binaries = 0   # In case the binaries of the filter are to be saved
 
 
 # Parameters regarding the indicator drawings (for the red cross and the blue dots on show_ground comparison)
@@ -129,6 +130,23 @@ while True:
         percentages = []
         area_width = int(img_width/number_areas)
 
+
+        if save_binaries:
+            # Saving binary as c-array
+            lines = []
+            for row in range(np.shape(grass_binary)[0]):
+                line = []
+                for element in grass_binary[row, :]:
+                    line.append(str(element*1))
+
+                lines.append('{' + ','.join(line) + '}') 
+
+            str2write = '{'+',\n'.join(lines)+'}'
+            f = open('./Binaries/binary_'+str(frame_index)+'.txt', 'w')
+            f.write(str2write)
+            f.close()
+            
+        
         # Computing Centroids of white areas in different sub-areas of the frame
         for i in range(number_areas):
             v_lines_x = area_width * (i+1)
@@ -160,7 +178,8 @@ while True:
                 cv2.putText(new_RGB, perc_text, (int(v_lines_x-3*area_width/4),100), font, 0.5,(255,255,255),2,cv2.LINE_AA)
 
         # Defining the goals
-        goal_index = np.argmax(np.array(percentages)*np.array(cy_data))
+    
+        goal_index = np.argmax(np.array(percentages)*(img_height-np.array(cy_data)))
         x_goal = cx_data[goal_index]
 
         y_column = grass[:,x_goal][::-1]
@@ -184,7 +203,6 @@ while True:
     ############### COORDINATE TRANFORMATION ###############
     if not lost:
         #required_rotation  = np.arctan2((int(img_width*0.5)-x_goal)*m_per_pixel_h, dist_to_frame)
-        
         required_rotation = np.arctan2((x_goal-img_width*0.5)*np.tan(np.radians(h_fov/2)), int(img_width*0.5))
         
         y_frame  = img_height - y_goal
