@@ -9,7 +9,7 @@ import time
 # Hyper parameters
 kernel_value = 18      ### Square that is averaged out for less noise
 number_areas = 5       ### Number of vertical areas created for the centroids
-delay        = 0.0     ### delay in seconds for better observation of algorithm performance
+delay        = 0.3    ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
 side_pixels_sliced = 1
 min_ground_pixels = 600
