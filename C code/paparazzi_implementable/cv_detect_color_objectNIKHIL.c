@@ -306,7 +306,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   }
 
   // Go through all sub-areas
-  for (int area_ind=0; area_ind < 1; area_ind++){// MAX_NUM_AREAS; area_ind++){
+  for (int area_ind=0; area_ind <  MAX_NUM_AREAS; area_ind++){// MAX_NUM_AREAS; area_ind++){
 
 	  area_count = 0;
 	  Ax = 0;
@@ -314,7 +314,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 	  current_score = 0.0;
 
 	  // Go through all the y-pixels of sub-area
-	  for (int y = 0; y < img->h; y++) {
+	  for (int y = (area_ind * area_width); y < ((area_ind+1) * area_width); y++) {
 		  // Go through all the x-pixels of sub-area
 		  for (int x = 0; x < img->w; x++) {
 
@@ -355,18 +355,10 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 
 				  if (draw){
 					  *yp = 255;  // make pixel brighter in image
-				  };
-			  //}else{
-			  //	  binary_img[y][x] = 0;
+				  }
 			  }
-//			  printf("%d ", binary_img[y][x]);
 		  }
-//		  printf("\n");
-	  };
-//	  printf("\n");
-//	  printf("\n");
-//	  printf("\n");
-//	  printf("\n");
+	  }
 
 
 
@@ -429,8 +421,10 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   // thus x_goal is actually y_goal and vice-versa
   goals[0] = y_goal;
   goals[1] = x_goal;
-
-
+  if (alf%40 == 0){
+	  printf("%d, %d\n", y_goal, x_goal);
+	  printf("%f, %f\n", y_goal/520, x_goal/240);
+  }
 
 
   // OLD CENTROID CALC
