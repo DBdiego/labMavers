@@ -65,7 +65,7 @@ static pthread_mutex_t mutex;
 #endif
 
 #ifndef MAX_DIST_CENT
-#define MAX_DIST_CENT 0.3  //ration of img_height representing the maximum distance the target destination can be from its centroid
+#define MAX_DIST_CENT 0.3  //ratio of img_height representing the maximum distance the target destination can be from its centroid
 #endif
 
 
@@ -87,6 +87,7 @@ uint8_t cod_cr_min11 = 0;
 uint8_t cod_cr_max11 = 0;
 
 
+// Green filter:
 uint8_t cod_lum_min2 = 0;
 uint8_t cod_lum_max2 = 0;
 uint8_t cod_cb_min2 = 0;
@@ -101,8 +102,6 @@ static int alf = 0;
 
 // define global variables
 struct color_object_t {
-  int32_t x_c;
-  int32_t y_c;
   uint32_t color_count;
   bool updated;
   uint16_t goalx;
@@ -111,11 +110,21 @@ struct color_object_t {
 struct color_object_t global_filters[2];
 uint16_t goals[2];
 
-// Function
-uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc, bool draw,
+
+
+
+
+// PROTOTYPING FUNCTION
+uint32_t find_object_centroid(struct image_t *img, bool draw,
                               uint8_t lum_min, uint8_t lum_max,
                               uint8_t cb_min, uint8_t cb_max,
                               uint8_t cr_min, uint8_t cr_max, uint16_t goals[]);
+
+
+
+
+
+
 
 /*
  * object_detector
@@ -130,44 +139,23 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
   uint8_t cr_min, cr_max;
   bool draw;
 
-  switch (filter){
-    case 1:
-      lum_min = cod_lum_min1;
-      lum_max = cod_lum_max1;
-      cb_min = cod_cb_min1;
-      cb_max = cod_cb_max1;
-      cr_min = cod_cr_min1;
-      cr_max = cod_cr_max1;
-      draw = cod_draw1;
-      break;
-    case 2:
-      lum_min = cod_lum_min2;
-      lum_max = cod_lum_max2;
-      cb_min = cod_cb_min2;
-      cb_max = cod_cb_max2;
-      cr_min = cod_cr_min2;
-      cr_max = cod_cr_max2;
-      draw = cod_draw2;
-      break;
-    default:
-      return img;
-  };
+  lum_min = cod_lum_min2;
+  lum_max = cod_lum_max2;
+  cb_min = cod_cb_min2;
+  cb_max = cod_cb_max2;
+  cr_min = cod_cr_min2;
+  cr_max = cod_cr_max2;
+  draw = cod_draw2;
 
-  int32_t x_c, y_c;
 
   // Filter and find centroid
-  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, goals);
+  uint32_t count = find_object_centroid(img, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, goals);
   alf++;
-
-
-  VERBOSE_PRINT("Color count %d: %u, threshold %u, x_c %d, y_c %d\n", camera, object_count, count_threshold, x_c, y_c);
-  VERBOSE_PRINT("centroid %d: (%d, %d) r: %4.2f a: %4.2f\n", camera, x_c, y_c,
-        hypotf(x_c, y_c) / hypotf(img->w * 0.5, img->h * 0.5), RadOfDeg(atan2f(y_c, x_c)));
 
   pthread_mutex_lock(&mutex);
   global_filters[filter-1].color_count = count;
-  global_filters[filter-1].x_c = x_c;
-  global_filters[filter-1].y_c = y_c;
+  //global_filters[filter-1].x_c = x_c;
+  //global_filters[filter-1].y_c = y_c;
   global_filters[filter-1].updated = true;
   global_filters[filter-1].goalx = goals[0];
   global_filters[filter-1].goaly = goals[1];
@@ -176,21 +164,6 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
 
   return img;
 }
-
-
-
-
-
-
-
-
-
-struct image_t *object_detector1(struct image_t *img);
-struct image_t *object_detector1(struct image_t *img)
-{
-  return object_detector(img, 1);
-}
-
 
 
 
@@ -208,21 +181,6 @@ void color_object_detector_init(void)
 {
   memset(global_filters, 0, 2*sizeof(struct color_object_t));
   pthread_mutex_init(&mutex, NULL);
-#ifdef COLOR_OBJECT_DETECTOR_CAMERA1
-#ifdef COLOR_OBJECT_DETECTOR_LUM_MIN1
-  cod_lum_min1 = COLOR_OBJECT_DETECTOR_LUM_MIN1;
-  cod_lum_max1 = COLOR_OBJECT_DETECTOR_LUM_MAX1;
-  cod_cb_min1 = COLOR_OBJECT_DETECTOR_CB_MIN1;
-  cod_cb_max1 = COLOR_OBJECT_DETECTOR_CB_MAX1;
-  cod_cr_min1 = COLOR_OBJECT_DETECTOR_CR_MIN1;
-  cod_cr_max1 = COLOR_OBJECT_DETECTOR_CR_MAX1;
-#endif
-#ifdef COLOR_OBJECT_DETECTOR_DRAW1
-  cod_draw1 = COLOR_OBJECT_DETECTOR_DRAW1;
-#endif
-
-  cv_add_to_device(&COLOR_OBJECT_DETECTOR_CAMERA1, object_detector1, COLOR_OBJECT_DETECTOR_FPS1);
-#endif
 
 #ifdef COLOR_OBJECT_DETECTOR_CAMERA2
 #ifdef COLOR_OBJECT_DETECTOR_LUM_MIN2
@@ -256,19 +214,16 @@ void color_object_detector_init(void)
  * @return number of pixels found
  */
 int16_t img_size[2];
-uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc, bool draw,
+uint32_t find_object_centroid(struct image_t *img, bool draw,
                               uint8_t lum_min, uint8_t lum_max,
                               uint8_t cb_min, uint8_t cb_max,
                               uint8_t cr_min, uint8_t cr_max, uint16_t goals[])
 {
-  uint32_t cnt = 0;
-  uint32_t tot_x = 0;
-  uint32_t tot_y = 0;
-  uint8_t *buffer = img->buf;
 
-  // NEWLY DEFINED :)
+  uint8_t *buffer = img->buf;
   uint16_t area_width = (img->h)/(float)MAX_NUM_AREAS;
   uint32_t area_count;
+  uint32_t tot_count = 0;
   uint32_t Ax;
   uint32_t Ay;
   uint16_t centroid_coords[MAX_NUM_AREAS][2];
@@ -280,17 +235,17 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   img_size[1] = img->h;
   int NW = 1;
 
-  float percentages[MAX_NUM_AREAS];
   float current_score;
   float max_score = 0.0;
 
   for (int i = 0; i < img->h; i++){
 	for (int j = 0; j < img->w; j++){
 		binary_img[i][j] = 0;
-	}
-  }
+	};
+  };
 
 
+  // ---------------------------- COLOR FILTER & CENTROID CALC ----------------------------
   // Go through all sub-areas
   for (uint16_t area_ind=0; area_ind < MAX_NUM_AREAS; area_ind++){
 
@@ -328,21 +283,27 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 				   (*vp >= cr_min ) && (*vp <= cr_max )) {
 
 				  binary_img[y][x] = NW;
-				  cnt ++;
-				  tot_x += x;
-				  tot_y += y;
-
-				  area_count ++;
 
 				  // x_bar = sum(A*x)/sum(A) --> Ax_tot / count
 				  Ax += x ;
 				  Ay += y ;
 
+				  tot_count ++;
+				  area_count ++;
+
 
 				  if (draw){
 					  *yp = 255;  // make pixel brighter in image
+					  *up = 127;
+					  *vp = 127;
 				  };
 
+			  }else{
+				  if (draw){
+					  *yp = 0;
+					  *up = 127;
+					  *vp = 127;
+				  };
 			  };
 		  };
 	  };
@@ -352,14 +313,15 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
       if (area_count > MIN_GREEN_PIX_AREA){
     	  centroid_coords[area_ind][0] = Ax/(1.0 * area_count) ;
     	  centroid_coords[area_ind][1] = Ay/(1.0 * area_count) ;
-    	  percentages[area_ind] = (1.0 * area_count)/(area_width * img->w);
+    	  //percentages[area_ind] = (1.0 * area_count)/(area_width * img->w);
+    	  current_score = (1.0 * area_count)/(area_width * img->w) * (centroid_coords[area_ind][0]);
       } else{
     	  centroid_coords[area_ind][0] = 0;
     	  centroid_coords[area_ind][1] = 0;
-    	  percentages[area_ind] = 0.0;
+    	  //percentages[area_ind] = 0.0;
+    	  current_score = 0;
       };
 
-      current_score = percentages[area_ind] * (centroid_coords[area_ind][0]);
 
       // Finding highest score of all areas
       if (current_score > max_score){
@@ -367,7 +329,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
     	  max_score_location = area_ind;
       };
 
-
+      /*
       if (alf == 1){
     		for (int i = 0; i < img->h; i++){
     			for (int j = 0; j < img->w; j++){
@@ -376,11 +338,12 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
     	    printf("\n");
     	    }
       };
+      */
 
   };
 
 
-  // --------- TARGET COORDINATES ---------
+  // ---------------------------- TARGET COORDINATES ----------------------------
 
   // Selection of suggested destination x-coordinate (on image)
   uint8_t walker_sum;
@@ -407,6 +370,8 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   goals[0] = y_goal;
   goals[1] = x_goal;
 
+
+
   /*
   if (alf%40 == 0){
 	  printf("%d, %d\n", y_goal, x_goal);
@@ -414,20 +379,8 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   }
   */
 
-
-
-  // OLD CENTROID CALC
-  if (cnt > 0) {
-    *p_xc = (int32_t)roundf(tot_x / ((float) cnt) - img->w * 0.5f);
-    *p_yc = (int32_t)roundf(img->h * 0.5f - tot_y / ((float) cnt));
-  } else {
-    *p_xc = 0;
-    *p_yc = 0;
-  }
-  return cnt;
+  return tot_count;
 }
-
-
 
 
 
@@ -439,34 +392,13 @@ void color_object_detector_periodic(void)
   memcpy(local_filters, global_filters, 2*sizeof(struct color_object_t));
   pthread_mutex_unlock(&mutex);
 
-  if(local_filters[0].updated){
-    AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION1_ID, local_filters[0].x_c, local_filters[0].y_c,
-        0, 0, local_filters[0].color_count, 0);
-    local_filters[0].updated = false;
-  }
-
   if(local_filters[1].updated){
-	  AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION2_ID, local_filters[1].x_c, local_filters[1].y_c,
+	  AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION2_ID, img_size[0], img_size[1],
 			  local_filters[1].goalx, local_filters[1].goaly, local_filters[1].color_count, 1);
 
 	  local_filters[1].updated = false;
   }
 }
-
-
-/*
- cod_lum_min2
- cod_lum_max2
- cod_cb_min2
- cod_cb_max2
- cod_cr_min2
- cod_cr_max2
- */
-
-
-
-
-
 
 
 
