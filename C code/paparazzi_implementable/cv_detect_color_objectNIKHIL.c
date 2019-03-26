@@ -97,6 +97,8 @@ uint8_t cod_cr_max2 = 0;
 bool cod_draw1 = false;
 bool cod_draw2 = false;
 
+static int alf = 0;
+
 // define global variables
 struct color_object_t {
   int32_t x_c;
@@ -126,6 +128,9 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
   uint8_t lum_min, lum_max;
   uint8_t cb_min, cb_max;
   uint8_t cr_min, cr_max;
+  uint8_t lum_min11, lum_max11;
+  uint8_t cb_min11, cb_max11;
+  uint8_t cr_min11, cr_max11;
   bool draw;
 
   switch (filter){
@@ -136,6 +141,13 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
       cb_max = cod_cb_max1;
       cr_min = cod_cr_min1;
       cr_max = cod_cr_max1;
+
+      lum_min11 = cod_lum_min11;
+      lum_max11 = cod_lum_max11;
+      cb_min11 = cod_cb_min11;
+      cb_max11 = cod_cb_max11;
+      cr_min11 = cod_cr_min11;
+      cr_max11 = cod_cr_max11;
       draw = cod_draw1;
       break;
     case 2:
@@ -154,8 +166,8 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
   int32_t x_c, y_c;
 
   // Filter and find centroid
-  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, goals);
-
+  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min11, lum_max11, cb_min11, cb_max11, cr_min11, cr_max11, goals);
+  alf++;
 
 
   VERBOSE_PRINT("Color count %d: %u, threshold %u, x_c %d, y_c %d\n", camera, object_count, count_threshold, x_c, y_c);
@@ -214,6 +226,12 @@ void color_object_detector_init(void)
   cod_cb_max1 = COLOR_OBJECT_DETECTOR_CB_MAX1;
   cod_cr_min1 = COLOR_OBJECT_DETECTOR_CR_MIN1;
   cod_cr_max1 = COLOR_OBJECT_DETECTOR_CR_MAX1;
+  cod_lum_min11 = COLOR_OBJECT_DETECTOR_LUM_MIN11;
+  cod_lum_max11 = COLOR_OBJECT_DETECTOR_LUM_MAX11;
+  cod_cb_min11 = COLOR_OBJECT_DETECTOR_CB_MIN11;
+  cod_cb_max11 = COLOR_OBJECT_DETECTOR_CB_MAX11;
+  cod_cr_min11 = COLOR_OBJECT_DETECTOR_CR_MIN11;
+  cod_cr_max11 = COLOR_OBJECT_DETECTOR_CR_MAX11;
 #endif
 #ifdef COLOR_OBJECT_DETECTOR_DRAW1
   cod_draw1 = COLOR_OBJECT_DETECTOR_DRAW1;
@@ -273,16 +291,22 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   uint8_t max_score_location = 0;
   uint16_t x_goal = 0;
   uint16_t y_goal = 0;
-  uint8_t binary_img[img->h][img->w];
+  int binary_img[img->h][img->w];
   img_size[0] = img->w;
   img_size[1] = img->h;
+  int NW = 1;
 
   float percentages[MAX_NUM_AREAS];
   float current_score;
   float max_score = 0.0;
+  for (int i = 0; i < img->h; i++){
+	for (int j = 0; j < img->w; j++){
+		binary_img[i][j] = 0;
+	}
+  }
 
   // Go through all sub-areas
-  for (uint16_t area_ind=0; area_ind < MAX_NUM_AREAS; area_ind++){
+  for (int area_ind=0; area_ind < 1; area_ind++){// MAX_NUM_AREAS; area_ind++){
 
 	  area_count = 0;
 	  Ax = 0;
@@ -290,9 +314,9 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 	  current_score = 0.0;
 
 	  // Go through all the y-pixels of sub-area
-	  for (uint16_t y = (area_ind * area_width); y < ((area_ind+1) * area_width); y++) {
+	  for (int y = 0; y < img->h; y++) {
 		  // Go through all the x-pixels of sub-area
-		  for (uint16_t x = 0; x < img->w; x++) {
+		  for (int x = 0; x < img->w; x++) {
 
 			  // Converting to YUV color scheme
 			  uint8_t *yp, *up, *vp;
@@ -317,7 +341,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 				   (*up >= cb_min ) && (*up <= cb_max ) &&
 				   (*vp >= cr_min ) && (*vp <= cr_max )) {
 
-				  binary_img[y][x] = 1;
+				  binary_img[y][x] = NW;
 				  cnt ++;
 				  tot_x += x;
 				  tot_y += y;
@@ -332,11 +356,19 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 				  if (draw){
 					  *yp = 255;  // make pixel brighter in image
 				  };
-			  }else{
-				  binary_img[y][x] = 0;
+			  //}else{
+			  //	  binary_img[y][x] = 0;
 			  }
-		  };
+//			  printf("%d ", binary_img[y][x]);
+		  }
+//		  printf("\n");
 	  };
+//	  printf("\n");
+//	  printf("\n");
+//	  printf("\n");
+//	  printf("\n");
+
+
 
 
       // Centroid of sub-area (if enough green detected)
@@ -360,6 +392,14 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 
   };
 
+  if (alf == 40){
+		for (int i = 0; i < img->h; i++){
+			for (int j = 0; j < img->w; j++){
+				printf("%d ",binary_img[i][j]);
+			}
+	    printf("\n");
+	    }
+  }
 
   // --------- TARGET COORDINATES ---------
 
