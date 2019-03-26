@@ -43,6 +43,15 @@
 #define VERBOSE_PRINT(...)
 #endif
 
+
+#ifndef H_FOV
+#define H_FOV 120
+#endif
+
+#ifndef V_FOV
+#define V_FOV 40
+#endif
+
 uint8_t chooseRandomIncrementAvoidance(void);
 
 enum navigation_state_t {
@@ -126,27 +135,30 @@ static void floor_detection_cb(uint8_t __attribute__((unused)) sender_id,
  */
 void distance_func(uint16_t goals[], double dist_func[])
 {
-	int x_frame, y_frame, x_center, y_center, img_height, img_width, h_fov, v_fov;
-	double altitude, tan_gamma, distance, dist_to_frame, required_rotation, p;
+	int x_frame, y_frame, x_center, y_center; //img_height, img_width, h_fov, v_fov;
+	double altitude, tan_gamma, distance, dist_to_frame, required_rotation, p, pitch;
 
-	altitude      = 1;//stateGetPositionEnu_f()->z;      // This will be taken from the states (z-coordinate)
-	img_height    = img.h;    // Will most likely be defined (or simply read from the image) elsewhere
-	img_width     = img.w;    //  "
-	h_fov         = 120;    // Need to be measured
-	v_fov         = 40;     //  "
+	altitude  = stateGetPositionEnu_f()->z;      // This will be taken from the states (z-coordinate)
+	pitch     = stateGetNedToBodyEulers_f()->theta;
+	//img_height    = img.h;    // Will most likely be defined (or simply read from the image) elsewhere
+	//img_width     = img.w;    //  "
+	//h_fov         = 120;    // Need to be measured
+	//v_fov         = 40;     //  "
 
-    tan_gamma     = tan((M_PI/2) - v_fov*(M_PI/180));
+	printf("pitch bitch: %f \n", pitch);
+
+    tan_gamma     = tan((M_PI/2) - V_FOV*(M_PI/180)- pitch);
 	dist_to_frame = altitude * tan_gamma;
 
-	x_frame  = img_width  - goals[0];
-	x_center = goals[0] - (img_width/2);
+	x_frame  = img.w  - goals[0];
+	x_center = goals[0] - (img.w/2);
 
 	_Bool lost = 0;
 
 	if(lost == 0) {
-		required_rotation = atan((x_center * tan((h_fov/2)*(M_PI/180)))/(img_width/2));
+		required_rotation = atan((x_center * tan((H_FOV/2)*(M_PI/180)))/(img.w/2));
 		y_frame  = goals[1];
-		y_center = (img_height/2) - goals[1];
+		y_center = (img.h/2) - goals[1];
 		p = y_frame/y_center * altitude * tan_gamma;
 		distance = (dist_to_frame + p)/cos(required_rotation);
 		dist_func[0] = required_rotation;
@@ -158,7 +170,6 @@ void distance_func(uint16_t goals[], double dist_func[])
 		dist_func[0] = required_rotation;
 		dist_func[1] = distance;
 	}
-
 }
 // ============================================= END GROUP FUNCTIONS ==============================================
 
@@ -332,6 +343,7 @@ uint8_t chooseRandomIncrementAvoidance(void)
   }
   return false;
 };
+
 
 
 

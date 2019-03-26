@@ -97,6 +97,8 @@ uint8_t cod_cr_max2 = 0;
 bool cod_draw1 = false;
 bool cod_draw2 = false;
 
+static int alf = 0;
+
 // define global variables
 struct color_object_t {
   int32_t x_c;
@@ -155,7 +157,7 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
 
   // Filter and find centroid
   uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, goals);
-
+  alf++;
 
 
   VERBOSE_PRINT("Color count %d: %u, threshold %u, x_c %d, y_c %d\n", camera, object_count, count_threshold, x_c, y_c);
@@ -273,13 +275,21 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   uint8_t max_score_location = 0;
   uint16_t x_goal = 0;
   uint16_t y_goal = 0;
-  uint8_t binary_img[img->h][img->w];
+  int binary_img[img->h][img->w];
   img_size[0] = img->w;
   img_size[1] = img->h;
+  int NW = 1;
 
   float percentages[MAX_NUM_AREAS];
   float current_score;
   float max_score = 0.0;
+
+  for (int i = 0; i < img->h; i++){
+	for (int j = 0; j < img->w; j++){
+		binary_img[i][j] = 0;
+	}
+  }
+
 
   // Go through all sub-areas
   for (uint16_t area_ind=0; area_ind < MAX_NUM_AREAS; area_ind++){
@@ -317,7 +327,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 				   (*up >= cb_min ) && (*up <= cb_max ) &&
 				   (*vp >= cr_min ) && (*vp <= cr_max )) {
 
-				  binary_img[y][x] = 1;
+				  binary_img[y][x] = NW;
 				  cnt ++;
 				  tot_x += x;
 				  tot_y += y;
@@ -332,21 +342,12 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
 				  if (draw){
 					  *yp = 255;  // make pixel brighter in image
 				  };
-			  }else{
-				  binary_img[y][x] = 0;
-			  }
+
+			  };
 		  };
 	  };
 
-      	if (alf == 40){
-		for (int i = 0; i < img->w; i++){
-			for (int j = 0; j < img->h; j++){
-				printf("%d ",binary_image[i][j]);
-			}
-		printf("\n");
-		}
-	}
-	alf++;
+
       // Centroid of sub-area (if enough green detected)
       if (area_count > MIN_GREEN_PIX_AREA){
     	  centroid_coords[area_ind][0] = Ax/(1.0 * area_count) ;
@@ -366,12 +367,20 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
     	  max_score_location = area_ind;
       };
 
+
+      if (alf == 1){
+    		for (int i = 0; i < img->h; i++){
+    			for (int j = 0; j < img->w; j++){
+    				printf("%d ",binary_img[i][j]);
+    			}
+    	    printf("\n");
+    	    }
+      };
+
   };
 
 
   // --------- TARGET COORDINATES ---------
-
-
 
   // Selection of suggested destination x-coordinate (on image)
   uint8_t walker_sum;
@@ -398,6 +407,12 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
   goals[0] = y_goal;
   goals[1] = x_goal;
 
+  /*
+  if (alf%40 == 0){
+	  printf("%d, %d\n", y_goal, x_goal);
+	  printf("%f, %f\n", y_goal/(520*1.0), x_goal/(240*1.0));
+  }
+  */
 
 
 
@@ -447,6 +462,7 @@ void color_object_detector_periodic(void)
  cod_cr_min2
  cod_cr_max2
  */
+
 
 
 
