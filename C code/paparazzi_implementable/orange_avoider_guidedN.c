@@ -77,7 +77,7 @@ enum navigation_state_t {
 
 // define settings
 float oag_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
-float oag_floor_count_frac = 0.2f;       // floor detection threshold as a fraction of total of image
+float oag_floor_count_frac = 0.05f;       // floor detection threshold as a fraction of total of image
 float oag_max_speed = 0.5f;               // max flight speed [m/s]
 float oag_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
 
@@ -94,14 +94,15 @@ int16_t target_img_coors[2];
 double dist_func[2];
 
 struct img_struct  {
-		int16_t w;
-		int16_t h;
+    int16_t w;
+    int16_t h;
 };
 
 struct img_struct img;
 
 
 static int target_yaw;
+static int rotating;
 
 
 
@@ -151,41 +152,41 @@ static void floor_detection_cb(uint8_t __attribute__((unused)) sender_id,
  */
 void distance_func(uint16_t goals[], double dist_func[])
 {
-	int x_frame, y_frame, x_center, y_center; //img_height, img_width, h_fov, v_fov;
-	double altitude, tan_gamma, distance, dist_to_frame, required_rotation, p, pitch;
+  int x_frame, y_frame, x_center, y_center; //img_height, img_width, h_fov, v_fov;
+  double altitude, tan_gamma, distance, dist_to_frame, required_rotation, p, pitch;
 
-	altitude  = stateGetPositionEnu_f()->z;      // This will be taken from the states (z-coordinate)
-	pitch     = stateGetNedToBodyEulers_f()->theta;
-	//img_height    = img.h;    // Will most likely be defined (or simply read from the image) elsewhere
-	//img_width     = img.w;    //  "
-	//h_fov         = 120;    // Need to be measured
-	//v_fov         = 40;     //  "
+  altitude  = stateGetPositionEnu_f()->z;      // This will be taken from the states (z-coordinate)
+  pitch     = stateGetNedToBodyEulers_f()->theta;
+  //img_height    = img.h;    // Will most likely be defined (or simply read from the image) elsewhere
+  //img_width     = img.w;    //  "
+  //h_fov         = 120;    // Need to be measured
+  //v_fov         = 40;     //  "
 
-	printf("pitch bitch: %f \n", pitch);
+  //printf("pitch bitch: %f \n", pitch);
 
     tan_gamma     = tan((M_PI/2) - V_FOV*(M_PI/180)- pitch);
-	dist_to_frame = altitude * tan_gamma;
+  dist_to_frame = altitude * tan_gamma;
 
-	x_frame  = img.w  - goals[0];
-	x_center = goals[0] - (img.w/2);
+  x_frame  = img.w  - goals[0];
+  x_center = goals[0] - (img.w/2);
 
-	_Bool lost = 0;
+  _Bool lost = 0;
 
-	if(lost == 0) {
-		required_rotation = atan((x_center * tan((H_FOV/2)*(M_PI/180)))/(img.w/2));
-		y_frame  = goals[1];
-		y_center = (img.h/2) - goals[1];
-		p = y_frame/y_center * altitude * tan_gamma;
-		distance = (dist_to_frame + p)/cos(required_rotation);
-		dist_func[0] = required_rotation;
-		dist_func[1] = distance;
-	}
-	else {
-		required_rotation = 0;
-		distance = 0;
-		dist_func[0] = required_rotation;
-		dist_func[1] = distance;
-	}
+  if(lost == 0) {
+    required_rotation = atan((x_center * tan((H_FOV/2)*(M_PI/180)))/(img.w/2));
+    y_frame  = goals[1];
+    y_center = (img.h/2) - goals[1];
+    p = y_frame/y_center * altitude * tan_gamma;
+    distance = (dist_to_frame + p)/cos(required_rotation);
+    dist_func[0] = required_rotation;
+    dist_func[1] = distance;
+  }
+  else {
+    required_rotation = 0;
+    distance = 0;
+    dist_func[0] = required_rotation;
+    dist_func[1] = distance;
+  }
 }
 // ============================================= END GROUP FUNCTIONS ==============================================
 
@@ -221,10 +222,15 @@ void orange_avoider_guided_init(void)
  */
 void orange_avoider_guided_periodic(void)
 {
+  /*
   // Only run the mudule if we are in the correct flight mode
   if (guidance_h.mode != GUIDANCE_H_MODE_GUIDED) {
     navigation_state = SEARCH_FOR_SAFE_HEADING;
     obstacle_free_confidence = 0;
+    return;
+  }
+  */
+  if (!autopilot_in_flight()){
     return;
   }
 
@@ -241,7 +247,7 @@ void orange_avoider_guided_periodic(void)
   int32_t floor_count_threshold = oag_floor_count_frac * front_camera.output_size.w * front_camera.output_size.h;
   float floor_centroid_frac = floor_centroid / (float)front_camera.output_size.h / 2.f;
 
-  VERBOSE_PRINT("target coors image: [%d,%d] \n required rotation: %f\n distance: %fm\n\n", target_img_coors[0], target_img_coors[1], dist_func[0], dist_func[1]);
+  //VERBOSE_PRINT("target coors image: [%d,%d] \n required rotation: %f\n distance: %fm\n\n", target_img_coors[0], target_img_coors[1], dist_func[0], dist_func[1]);
   //VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
   //VERBOSE_PRINT("Floor count: %d, threshold: %d\n", floor_count, floor_count_threshold);
   //VERBOSE_PRINT("Floor centroid: %f\n", floor_centroid_frac);
@@ -263,14 +269,14 @@ void orange_avoider_guided_periodic(void)
 
   /*
   filter_green(struct image_t *img,
-		  	   bool draw,
-			   uint8_t lum_min,
-			   uint8_t lum_max,
-			   uint8_t cb_min,
-			   uint8_t cb_max,
-			   uint8_t cr_min,
-			   uint8_t cr_max,
-			   uint8_t img_filt[img->w][img->h]);
+           bool draw,
+         uint8_t lum_min,
+         uint8_t lum_max,
+         uint8_t cb_min,
+         uint8_t cb_max,
+         uint8_t cr_min,
+         uint8_t cr_max,
+         uint8_t img_filt[img->w][img->h]);
   */
 
   // -------------------- STATES -----------------------
@@ -278,72 +284,99 @@ void orange_avoider_guided_periodic(void)
   switch (navigation_state){
     //1
     case SAFE:
-    	printf("0");
-    	if (dist_to_wp(WP_GOAL) < 50.f){
-    		navigation_state = SEARCH_FOR_SAFE_HEADING;
-    	}
-    	else if (confidence == 0)
-    	{
-    		navigation_state = SEARCH_FOR_SAFE_HEADING;
-    	}
-    	else {
-    		navigation_state = SAFE;
-    	}
-    	break;
+      printf("0");
+      if (dist_to_wp(WP_GOAL) < 50.f){
+        navigation_state = SEARCH_FOR_SAFE_HEADING;
+      }
+      else if (confidence == 0)
+      {
+        navigation_state = SEARCH_FOR_SAFE_HEADING;
+      }
+      else {
+        navigation_state = SAFE;
+      }
+      break;
     //2
     case SEARCH_FOR_SAFE_HEADING:
-    	printf("1");
-    	chooseRandomIncrementAvoidance();
-		increase_nav_heading(avoidance_heading_direction);
-		// Check if enough pixels in FOV
-		if (floor_count < floor_count_threshold) {
-			float heading_inc;
-			if (avoidance_heading_direction >= 0){
-				heading_inc = 0.524;
-			} else {
-				heading_inc = -0.524;
-			}
-			increase_nav_heading(heading_inc);
-		}
+      if (rotating == 0){
+        chooseRandomIncrementAvoidance();
+        target_yaw = stateGetNedToBodyEulers_f()->psi + avoidance_heading_direction;
+        increase_nav_heading(avoidance_heading_direction);
+        rotating = 1;
+        printf("target_yaw: %f \n", DegOfRad(target_yaw));
+      }else{
+        printf("yaw_diff: %f , %f\n",  DegOfRad(target_yaw-stateGetNedToBodyEulers_f()->psi), DegOfRad(stateGetNedToBodyEulers_f()->psi));
+      }
 
-		if (confidence == 1){
-			navigation_state = CENTER_TARGET;
-		} else {
-			navigation_state = SEARCH_FOR_SAFE_HEADING;
-		}
-		break;
+      float margin = 5 * M_PI/180;
+      if ((target_yaw > 0 && stateGetNedToBodyEulers_f()->psi > target_yaw-margin && stateGetNedToBodyEulers_f()->psi < target_yaw+margin) ||
+        (target_yaw < 0 && stateGetNedToBodyEulers_f()->psi < target_yaw-margin && stateGetNedToBodyEulers_f()->psi > target_yaw+margin)){
+        rotating = 0;
+
+        printf("target_yaw REACHED\n");
+
+
+        // Check if enough pixels in FOV
+        if (floor_count < floor_count_threshold) {
+          printf("TOO LITTLE GREEN \n");
+          float heading_inc;
+          if (avoidance_heading_direction >= 0){
+            heading_inc = 0.524*0;
+          } else {
+            heading_inc = -0.524*0;
+          };
+
+          //increase_nav_heading(heading_inc);
+            target_yaw = stateGetNedToBodyEulers_f()->psi + heading_inc;
+            increase_nav_heading(heading_inc);
+            rotating = 1;
+
+        }else{
+
+            if (confidence == 1){
+              printf("NEW STATE: 2\n");
+              navigation_state = CENTER_TARGET;
+            } else {
+              navigation_state = SEARCH_FOR_SAFE_HEADING;
+            }
+        }
+
+
+      };
+
+    break;
     case CENTER_TARGET:
-    	printf("2");
+      printf("2");
       // stop
-    	increase_nav_heading(dist_func[0]);
-    	navigation_state = UPDATE_WP;
-    	break;
+      increase_nav_heading(dist_func[0]);
+      navigation_state = UPDATE_WP;
+      break;
 
     //3
 
 
     //4
     case UPDATE_WP:
-    	printf("3");
+      printf("3");
       // stop
-    	if (dist_func[1] < 100) {
-    		navigation_state = SEARCH_FOR_SAFE_HEADING;
-    	} else {
-    		moveWaypointForward(WP_TRAJECTORY, dist_func[1]);
-    		float dist_new = dist_func[1];
-    		while (!InsideObstacleZone(WaypointX(WP_TRAJECTORY),WaypointY(WP_TRAJECTORY)) && dist_new > 100){
-    			float dist_new = dist_new - 30;
-    			moveWaypointForward(WP_TRAJECTORY, dist_new);
-    		}
-    		if (dist_new < 100) {
-    		    navigation_state = SEARCH_FOR_SAFE_HEADING;
-    		}
-    		else {
-    			moveWaypointForward(WP_GOAL, dist_new);
-    			navigation_state = SAFE;
-    		}
-    	}
-    	break;
+      if (dist_func[1] < 100) {
+        navigation_state = SEARCH_FOR_SAFE_HEADING;
+      } else {
+        moveWaypointForward(WP_TRAJECTORY, dist_func[1]);
+        float dist_new = dist_func[1];
+        while (!InsideObstacleZone(WaypointX(WP_TRAJECTORY),WaypointY(WP_TRAJECTORY)) && dist_new > 100){
+          float dist_new = dist_new - 30;
+          moveWaypointForward(WP_TRAJECTORY, dist_new);
+        }
+        if (dist_new < 100) {
+            navigation_state = SEARCH_FOR_SAFE_HEADING;
+        }
+        else {
+          moveWaypointForward(WP_GOAL, dist_new);
+          navigation_state = SAFE;
+        }
+      }
+      break;
     default:
       break;
   }
@@ -358,13 +391,13 @@ void orange_avoider_guided_periodic(void)
 uint8_t chooseRandomIncrementAvoidance()
 {
   int numdeg = (rand()%(180 - 90 + 1)) + 90;
-  float num = numdeg*(3.14/180.f);
+  float numrad = numdeg*(3.14/180.f);
   if (rand() % 2 == 0) {
-	  avoidance_heading_direction = num;
-      VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction);
+    avoidance_heading_direction = numrad;
+      //VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction);
   } else {
-	  avoidance_heading_direction = -num;
-      VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction);
+    avoidance_heading_direction = -numrad;
+      //VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction);
   }
   return false;
 };
@@ -379,6 +412,12 @@ uint8_t chooseRandomIncrementAvoidance()
  */
 uint8_t increase_nav_heading(float incrementRad)
 {
+  if (incrementRad > M_PI){
+    incrementRad = 2*M_PI - incrementRad;
+  }else if (incrementRad < -M_PI){
+    incrementRad = 2*M_PI + incrementRad;
+  }
+
   float new_heading = stateGetNedToBodyEulers_f()->psi + incrementRad;//RadOfDeg(incrementDegrees);
 
   // normalize heading to [-pi, pi]
@@ -386,8 +425,9 @@ uint8_t increase_nav_heading(float incrementRad)
 
   // set heading
   nav_heading = ANGLE_BFP_OF_REAL(new_heading);
+  printf("%f", nav_heading);
 
-  VERBOSE_PRINT("Increasing heading to %f\n", DegOfRad(new_heading));
+  //VERBOSE_PRINT("Increasing heading to %f\n", DegOfRad(new_heading));
   return false;
 }
 
