@@ -7,7 +7,7 @@ import time
 
 
 # Hyper parameters
-kernel_value = 18      ### Square that is averaged out for less noise
+kernel_value = 0      ### Square that is averaged out for less noise
 number_areas = 5       ### Number of vertical areas created for the centroids
 delay        = 0.3    ### delay in seconds for better observation of algorithm performance
 num_pixels_above = 10  ### batch of pixels to be white above the centroid (per step of 10 in this case)
@@ -101,13 +101,13 @@ while True:
     # Color Filer (YUV)
     # --> y-value check
     b1 = yuv[:,:,0] > 0   #70 #30  #int(0.30 * 255)
-    b2 = yuv[:,:,0] < 150 #200#110 #int(0.95 * 255)
+    b2 = yuv[:,:,0] < 120 #200#110 #int(0.95 * 255)
 
     # -->u-value check
     b3 = yuv[:,:,1] < 135 #140
     
     # -->v-value check
-    b4 = yuv[:,:,2] < 135 #110
+    b4 = yuv[:,:,2] < 130 #110
 
     grass_binary = b1 * b2 * b3 * b4 
     grass = (grass_binary * 255).astype(np.uint8)
@@ -218,7 +218,7 @@ while True:
     x_i_direction = x_quad + distance * np.cos(resulting_angle)
     y_i_direction = y_quad + distance * np.sin(resulting_angle)
 
-    print(round(distance, 2), 'm', round(np.degrees(resulting_angle), 2), [round(x_i_direction, 2), round(y_i_direction, 2)])
+    #print(round(distance, 2), 'm', round(np.degrees(resulting_angle), 2), [round(x_i_direction, 2), round(y_i_direction, 2)])
 
 
 

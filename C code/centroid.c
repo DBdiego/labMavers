@@ -378,10 +378,10 @@ void determine_target(int size_x, int size_y, int binary_image[size_y][size_x], 
 		Ay_tot = 0;
 		count  = 0;
 
-		// Going through all x-indices of those areas
+		// Going through all y-indices of those areas
 		for (int cent_idy = 0; cent_idy < im_height; ++cent_idy){
 
-			// Going through all y-indices of those areas
+			// Going through all x-indices of those areas
 			for (int cent_idx = (area_ind * max_idx); cent_idx < ((area_ind+1) * max_idx); ++cent_idx){
 
 				// x_bar = sum(A*x)/sum(A) --> Ax_tot / count
