@@ -280,7 +280,9 @@ void orange_avoider_guided_periodic(void)
   */
 
   // -------------------- STATES -----------------------
-
+  float current_heading = stateGetNedToBodyEulers_f()->psi;
+  float float yaw_diff = target_yaw-current_heading;
+  FLOAT_ANGLE_NORMALIZE(current_heading);
   switch (navigation_state){
     //1
     case SAFE:
@@ -300,17 +302,30 @@ void orange_avoider_guided_periodic(void)
     case SEARCH_FOR_SAFE_HEADING:
       if (rotating == 0){
         chooseRandomIncrementAvoidance();
-        target_yaw = stateGetNedToBodyEulers_f()->psi + avoidance_heading_direction;
-        increase_nav_heading(avoidance_heading_direction);
+        target_yaw = current_heading + avoidance_heading_direction;
+        FLOAT_ANGLE_NORMALIZE(target_yaw);
+
+        increase_nav_heading(oag_heading_rate);
+        yaw_diff = target_yaw-current_heading;
         rotating = 1;
         printf("target_yaw: %f \n", DegOfRad(target_yaw));
       }else{
-        printf("yaw_diff: %f , %f\n",  DegOfRad(target_yaw-stateGetNedToBodyEulers_f()->psi), DegOfRad(stateGetNedToBodyEulers_f()->psi));
+        yaw_diff = target_yaw-current_heading;
+        if (yaw_diff > oag_heading_rate){
+          increase_nav_heading(oag_heading_rate);
+        }else{
+          increase_nav_heading(yaw_diff);
+        };
+
+        printf("yaw_diff: %f , %f\n",  DegOfRad(target_yaw-current_heading), DegOfRad(current_heading));
       }
 
-      float margin = 5 * M_PI/180;
-      if ((target_yaw > 0 && stateGetNedToBodyEulers_f()->psi > target_yaw-margin && stateGetNedToBodyEulers_f()->psi < target_yaw+margin) ||
-        (target_yaw < 0 && stateGetNedToBodyEulers_f()->psi < target_yaw-margin && stateGetNedToBodyEulers_f()->psi > target_yaw+margin)){
+      float margin = 10 * M_PI/180;
+      /*if ((target_yaw > 0 && current_heading > target_yaw-margin && current_heading < target_yaw+margin) ||
+        (target_yaw < 0 && current_heading < target_yaw-margin && current_heading > target_yaw+margin)){
+        rotating = 0;
+        */
+      if (yaw_diff > -margin && yaw_diff < margin){
         rotating = 0;
 
         printf("target_yaw REACHED\n");
@@ -412,11 +427,13 @@ uint8_t chooseRandomIncrementAvoidance()
  */
 uint8_t increase_nav_heading(float incrementRad)
 {
+/*
   if (incrementRad > M_PI){
     incrementRad = 2*M_PI - incrementRad;
   }else if (incrementRad < -M_PI){
     incrementRad = 2*M_PI + incrementRad;
   }
+  */
 
   float new_heading = stateGetNedToBodyEulers_f()->psi + incrementRad;//RadOfDeg(incrementDegrees);
 
@@ -425,11 +442,49 @@ uint8_t increase_nav_heading(float incrementRad)
 
   // set heading
   nav_heading = ANGLE_BFP_OF_REAL(new_heading);
-  printf("%f", nav_heading);
+  printf("nav_heading: %f \n", nav_heading);
 
   //VERBOSE_PRINT("Increasing heading to %f\n", DegOfRad(new_heading));
   return false;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*
