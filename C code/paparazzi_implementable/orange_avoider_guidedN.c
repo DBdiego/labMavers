@@ -90,6 +90,10 @@ float avoidance_heading_direction = 0;  // heading change direction for avoidanc
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
 int confidence = 1;
 
+static int conf_goals[3][2];            // this is a static array of goal coordinates
+static int loop_counter = 0;
+int conf_index;
+
 int16_t target_img_coors[2];
 double dist_func[2];
 
@@ -188,6 +192,72 @@ void distance_func(uint16_t goals[], double dist_func[])
     dist_func[1] = distance;
   }
 }
+/* This function simply calculates the distance between two points.
+ *
+ */
+float pythagoras(int point1[], int point2[]){
+	float distance;
+	distance = sqrt((point1[0]-point2[0])*(point1[0]-point2[0]) + (point1[1]-point2[1])*(point1[1]-point2[1]));
+	return distance;
+}
+
+
+/* This function compares three adjacent target coordinates and outputs a confidence boolean
+ * ie. it checks if a target coordinate is noise or not.
+ */
+int confidence_func(int conf_goals[3][2], int confidence, int final_target[]){
+	int limit, point1[2], point2[2], point3[2];
+	float distance_12, distance_13, distance_23;
+
+	limit = 100;
+
+	int x_values[3], y_values[3]; // Defining x_values- and y_value-arrays
+
+	//This for loop places all x-coordinates in one array and y-coordinates in another
+	for (int i = 0; i < 3; i++){
+		x_values[i] = conf_goals[i][0];
+		y_values[i] = conf_goals[i][1];
+	}
+
+	point1[0] = x_values[0];
+	point1[1] = y_values[0];
+
+	point2[0] = x_values[1];
+	point2[1] = y_values[1];
+
+	point3[0] = x_values[2];
+	point3[1] = y_values[2];
+
+	distance_12 = pythagoras(point1, point2);
+
+	/* This 'if' statement compares the locations of the 3 sets of goal coordinates
+	 * and gives a confidence and selects a point.
+	 */
+	if (distance_12 < limit){
+		confidence = 1;
+		final_target[0]    = x_values[0];
+		final_target[1]    = y_values[0];
+		printf("Confident 1\n");
+	} else{
+		distance_13 = pythagoras(point1, point3);
+		distance_23 = pythagoras(point2, point3);
+		if (distance_13 > limit && distance_23 < limit){
+			confidence = 1;
+			final_target[0] = x_values[1];
+			final_target[1] = y_values[1];
+			printf("Confident 2\n");
+		}else if (distance_13 < limit && distance_23 > limit){
+			confidence = 1;
+			final_target[0] = x_values[0];
+			final_target[1] = y_values[0];
+			printf("Confident 3\n");
+		}else if (distance_13 > limit && distance_23 > limit){
+			confidence = 0;
+			printf("Not confident \n");
+		}
+	}
+	return confidence;
+}
 // ============================================= END GROUP FUNCTIONS ==============================================
 
 
@@ -238,8 +308,29 @@ void orange_avoider_guided_periodic(void)
   img.w = front_camera.output_size.h;
   img.h = front_camera.output_size.w;
 
+  //______________________Added this______________________
+  int final_target[2];
+  int confidence = 0;
+  conf_index = loop_counter%3;
+  conf_goals[conf_index][0] = target_img_coors[0];
+  conf_goals[conf_index][1] = target_img_coors[1];
 
-  distance_func(target_img_coors, dist_func);
+  confidence = confidence_func(conf_goals, confidence, final_target);
+/*
+  printf("%d\n", conf_index);
+  printf("[%d, %d]\n", conf_goals[0][0], conf_goals[0][1]);
+  printf("[%d, %d]\n", conf_goals[1][0], conf_goals[1][1]);
+  printf("[%d, %d]\n", conf_goals[2][0], conf_goals[2][1]);
+  printf("== [%d, %d]\n", final_target[0],final_target[1]);
+*/
+
+  printf("->%d\n", confidence);
+  if (confidence){
+	  distance_func(final_target, dist_func);
+  }
+  printf("== [%f, %f]\n", dist_func[0],dist_func[1]);
+  //_______________________________________________________
+
 
 
   // compute current color thresholds
@@ -281,7 +372,7 @@ void orange_avoider_guided_periodic(void)
 
   // -------------------- STATES -----------------------
   float current_heading = stateGetNedToBodyEulers_f()->psi;
-  float float yaw_diff = target_yaw-current_heading;
+  float yaw_diff = target_yaw-current_heading;
   FLOAT_ANGLE_NORMALIZE(current_heading);
   switch (navigation_state){
     //1
@@ -538,6 +629,7 @@ float dist_to_wp(uint8_t waypoint)
   float diff_T = sqrt(diff_x*diff_x + diff_y*diff_y);
   return diff_T;
 }
+
 
 
 
