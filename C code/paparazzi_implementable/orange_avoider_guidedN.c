@@ -402,8 +402,8 @@ void orange_avoider_guided_periodic(void)
         printf("target_yaw: %f \n", DegOfRad(target_yaw));
       }else{
         yaw_diff = target_yaw-current_heading;
-        if (yaw_diff > oag_heading_rate){
-          increase_nav_heading(oag_heading_rate);
+        if (abs(yaw_diff) > oag_heading_rate){
+          increase_nav_heading(oag_heading_rate * abs(yaw_diff)/yaw_diff);
         }else{
           increase_nav_heading(yaw_diff);
         };
@@ -533,7 +533,6 @@ uint8_t increase_nav_heading(float incrementRad)
 
   // set heading
   nav_heading = ANGLE_BFP_OF_REAL(new_heading);
-  printf("nav_heading: %f \n", nav_heading);
 
   //VERBOSE_PRINT("Increasing heading to %f\n", DegOfRad(new_heading));
   return false;
