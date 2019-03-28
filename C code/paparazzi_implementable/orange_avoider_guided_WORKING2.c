@@ -50,11 +50,11 @@
 
 
 #ifndef H_FOV
-#define H_FOV 120
+#define H_FOV 110
 #endif
 
 #ifndef V_FOV
-#define V_FOV 40
+#define V_FOV 50
 #endif
 
 uint8_t chooseRandomIncrementAvoidance(void);
@@ -152,7 +152,9 @@ void distance_func(uint16_t goals[], double dist_func[])
 
   //printf("pitch bitch: %f \n", pitch);
 
-    tan_gamma     = tan((M_PI/2) - V_FOV*(M_PI/180)- pitch);
+  tan_gamma     = tan((M_PI/2) - 0.5*V_FOV*(M_PI/180)- pitch);
+
+  printf("gamma is %f", atan(tan_gamma));
   dist_to_frame = altitude * tan_gamma;
 
   x_frame  = img.w  - goals[0];
