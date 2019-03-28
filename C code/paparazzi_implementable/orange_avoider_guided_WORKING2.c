@@ -154,7 +154,6 @@ void distance_func(uint16_t goals[], double dist_func[])
 
   tan_gamma     = tan((M_PI/2) - 0.5*V_FOV*(M_PI/180)- pitch);
 
-  printf("gamma is %f", atan(tan_gamma));
   dist_to_frame = altitude * tan_gamma;
 
   x_frame  = img.w  - goals[0];
@@ -168,8 +167,8 @@ void distance_func(uint16_t goals[], double dist_func[])
     required_rotation = atan((x_center * tan((H_FOV/2.0)*(M_PI/180)))/(img.w/2));
     y_frame  = goals[1];
     y_center = (img.h/2) - goals[1];
-    p = y_frame/y_center * altitude * tan_gamma;
-    distance = (dist_to_frame + p)/cos(required_rotation);
+    p = (y_frame/y_center) * altitude * tan_gamma;
+    distance = (dist_to_frame + p)/cosf(required_rotation);
     dist_func[0] = required_rotation;
     dist_func[1] = distance;
   /*}
@@ -342,7 +341,7 @@ void orange_avoider_guided_periodic(void)
 
       printf("dist_to_wp = %f\n", dist_to_wp(WP_GOAL));
 
-      if (dist_to_wp(WP_GOAL) < 1.f){
+      if (dist_to_wp(WP_GOAL) < 0.05f){
         navigation_state = SEARCH_FOR_SAFE_HEADING;
       }
       else if (confidence == 0)
@@ -398,6 +397,7 @@ void orange_avoider_guided_periodic(void)
 
           //increase_nav_heading(heading_inc);
             target_yaw = current_heading + heading_inc;
+            FLOAT_ANGLE_NORMALIZE(target_yaw);
             yaw_diff = target_yaw-current_heading;
             increase_nav_heading(heading_inc);
             rotating = 1;
@@ -467,7 +467,7 @@ void orange_avoider_guided_periodic(void)
             navigation_state = SEARCH_FOR_SAFE_HEADING;
         } else {
           printf("GOAL FOUND\n");
-          moveWaypointForward(WP_GOAL, (dist_new));
+          moveWaypointForward(WP_GOAL, (dist_new-0.3));
           navigation_state = SAFE;
         }
       }
