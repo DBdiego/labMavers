@@ -112,22 +112,6 @@ static int rotating;
 
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
-//// This call back will be used to receive the color count from the orange detector
-//#ifndef ORANGE_AVOIDER_VISUAL_DETECTION_ID
-//#error This module requires two color filters, as such you have to define ORANGE_AVOIDER_VISUAL_DETECTION_ID to the orange filter
-//#error Please define ORANGE_AVOIDER_VISUAL_DETECTION_ID to be COLOR_OBJECT_DETECTION1_ID or COLOR_OBJECT_DETECTION2_ID in your airframe
-//#endif
-//static abi_event color_detection_ev;
-//static void color_detection_cb(uint8_t __attribute__((unused)) sender_id,
-//                               int16_t __attribute__((unused)) pixel_x, int16_t __attribute__((unused)) pixel_y,
-//                               int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-//                               int32_t quality, int16_t __attribute__((unused)) extra)
-//{
-//  color_count = quality;
-//}
-
-
-
 
 
 // Getting info from cv_detect_color_object.c
@@ -174,23 +158,26 @@ void distance_func(uint16_t goals[], double dist_func[])
   x_frame  = img.w  - goals[0];
   x_center = goals[0] - (img.w/2);
 
-  _Bool lost = 0;
 
-  if(lost == 0) {
-    required_rotation = atan((x_center * tan((H_FOV/2)*(M_PI/180)))/(img.w/2));
+  //_Bool lost = 0;
+
+  //if(lost == 0) {
+  	//printf("x-frame, x-center: %d, %d \n", x_center, x_frame);
+    required_rotation = atan((x_center * tan((H_FOV/2.0)*(M_PI/180)))/(img.w/2));
     y_frame  = goals[1];
     y_center = (img.h/2) - goals[1];
     p = y_frame/y_center * altitude * tan_gamma;
     distance = (dist_to_frame + p)/cos(required_rotation);
     dist_func[0] = required_rotation;
     dist_func[1] = distance;
-  }
+  /*}
   else {
     required_rotation = 0;
     distance = 0;
     dist_func[0] = required_rotation;
     dist_func[1] = distance;
   }
+  */
 }
 /* This function simply calculates the distance between two points.
  *
@@ -237,7 +224,6 @@ int confidence_func(int conf_goals[3][2], int confidence, int final_target[]){
 		confidence = 1;
 		final_target[0]    = x_values[0];
 		final_target[1]    = y_values[0];
-//		printf("Confident 1\n");
 	} else{
 		distance_13 = pythagoras(point1, point3);
 		distance_23 = pythagoras(point2, point3);
@@ -245,15 +231,12 @@ int confidence_func(int conf_goals[3][2], int confidence, int final_target[]){
 			confidence = 1;
 			final_target[0] = x_values[1];
 			final_target[1] = y_values[1];
-//			printf("Confident 2\n");
 		}else if (distance_13 < limit && distance_23 > limit){
 			confidence = 1;
 			final_target[0] = x_values[0];
 			final_target[1] = y_values[0];
-//			printf("Confident 3\n");
 		}else if (distance_13 > limit && distance_23 > limit){
 			confidence = 0;
-//			printf("Not confident \n");
 		}
 	}
 	return confidence;
@@ -280,7 +263,6 @@ void orange_avoider_guided_init(void)
   chooseRandomIncrementAvoidance();
 
   // bind our colorfilter callbacks to receive the color filter outputs
-//  AbiBindMsgVISUAL_DETECTION(ORANGE_AVOIDER_VISUAL_DETECTION_ID, &color_detection_ev, color_detection_cb);
   AbiBindMsgVISUAL_DETECTION(FLOOR_VISUAL_DETECTION_ID, &floor_detection_ev, floor_detection_cb);
 }
 
@@ -312,64 +294,33 @@ void orange_avoider_guided_periodic(void)
   int final_target[2];
   int confidence = 0;
   double dist_func[2];
+
   conf_index = loop_counter%3;
   conf_goals[conf_index][0] = target_img_coors[0];
   conf_goals[conf_index][1] = target_img_coors[1];
 
   confidence = confidence_func(conf_goals, confidence, final_target);
-/*
-  printf("%d\n", conf_index);
+  /*
+  printf("conf_index: %d", conf_index);
   printf("[%d, %d]\n", conf_goals[0][0], conf_goals[0][1]);
   printf("[%d, %d]\n", conf_goals[1][0], conf_goals[1][1]);
   printf("[%d, %d]\n", conf_goals[2][0], conf_goals[2][1]);
   printf("== [%d, %d]\n", final_target[0],final_target[1]);
-*/
+  */
+
 
 //  printf("->%d\n", confidence);
   if (confidence){
 	  distance_func(final_target, dist_func);
   }
-  printf("== [%f, %f]\n", dist_func[0],dist_func[1]);
+  //printf("rotation, distance: [%f, %f]\n", dist_func[0],dist_func[1]);
   //_______________________________________________________
 
-
+  loop_counter += 1;
 
   // compute current color thresholds
-  int32_t color_count_threshold = oag_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
   int32_t floor_count_threshold = oag_floor_count_frac * front_camera.output_size.w * front_camera.output_size.h;
   float floor_centroid_frac = floor_centroid / (float)front_camera.output_size.h / 2.f;
-
-  //VERBOSE_PRINT("target coors image: [%d,%d] \n required rotation: %f\n distance: %fm\n\n", target_img_coors[0], target_img_coors[1], dist_func[0], dist_func[1]);
-  //VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
-  //VERBOSE_PRINT("Floor count: %d, threshold: %d\n", floor_count, floor_count_threshold);
-  //VERBOSE_PRINT("Floor centroid: %f\n", floor_centroid_frac);
-
-
-  // update our safe confidence using color threshold
-  if(color_count < color_count_threshold){
-    obstacle_free_confidence++;
-  } else {
-    obstacle_free_confidence -= 2;  // be more cautious with positive obstacle detections
-  }
-
-  // bound obstacle_free_confidence
-  Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
-
-  float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence);
-
-  //test_func(stateGetPositionEnu_f()->z);
-
-  /*
-  filter_green(struct image_t *img,
-           bool draw,
-         uint8_t lum_min,
-         uint8_t lum_max,
-         uint8_t cb_min,
-         uint8_t cb_max,
-         uint8_t cr_min,
-         uint8_t cr_max,
-         uint8_t img_filt[img->w][img->h]);
-  */
 
   // -------------------- STATES -----------------------
   float current_heading = stateGetNedToBodyEulers_f()->psi;
@@ -378,11 +329,15 @@ void orange_avoider_guided_periodic(void)
   float margin = 3 * M_PI/180;
   float dist_new;
   FLOAT_ANGLE_NORMALIZE(current_heading);
+
+
+
+  // ------------------------------- STATES -------------------------------
   switch (navigation_state){
     //1
     case SAFE:
-      printf("0\n");
-      printf("drone position x,y: %f, %f\n",stateGetPositionEnu_f()->x, stateGetPositionEnu_f()->y);
+      printf("SAFE FLIGHT: ");
+
       printf("dist_to_wp = %f\n", dist_to_wp(WP_GOAL));
 
       if (dist_to_wp(WP_GOAL) < 1.f){
@@ -394,10 +349,12 @@ void orange_avoider_guided_periodic(void)
       }
       else {
         navigation_state = SAFE;
-      }
+      };
+
       break;
     //2
     case SEARCH_FOR_SAFE_HEADING:
+      printf("SEARCH_HEAD: ");
       if (rotating == 0){
         chooseRandomIncrementAvoidance();
         target_yaw = current_heading + avoidance_heading_direction;
@@ -406,39 +363,30 @@ void orange_avoider_guided_periodic(void)
         increase_nav_heading(oag_heading_rate);
         yaw_diff = target_yaw-current_heading;
         rotating = 1;
-        printf("target_yaw: %f \n", DegOfRad(target_yaw));
+
       }else{
     	  yaw_diff = target_yaw-current_heading;
-  //      float y_func = powf(2.0, (-2.0+sqrtf(DegOfRad(yaw_diff)*DegOfRad(yaw_diff))/20.0));
+    	  printf("target, current, diff: %f, %f, %f \n",DegOfRad(target_yaw), DegOfRad(current_heading), DegOfRad(yaw_diff));
 		  float y_func = 0.0077 * (yaw_diff*yaw_diff) + 0.8462 * sqrtf(yaw_diff*yaw_diff);
-  //      printf("y_func: %f \n", DegOfRad(oag_heading_rate)*y_func);
+
 		  if (abs(DegOfRad(yaw_diff)) < 25){
 			  increase_nav_heading(oag_heading_rate * y_func * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-			  printf("y_func: %f \n", DegOfRad(oag_heading_rate)*y_func);
+
 		  } else {
 			  increase_nav_heading(oag_heading_rate * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-  //          printf(" second: %f", oag_heading_rate * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-		  }
-//        yaw_diff = target_yaw-current_heading;
-//        if (abs(yaw_diff) > oag_heading_rate){
-//          increase_nav_heading(oag_heading_rate * abs(yaw_diff)/yaw_diff);
-//        }else{
-//          increase_nav_heading(yaw_diff);
-//        };
-//
-//        printf("yaw_diff: %f , %f\n",  DegOfRad(target_yaw-current_heading), DegOfRad(current_heading));
+		  };
       }
 
 
       if (yaw_diff > -margin && yaw_diff < margin){
         rotating = 0;
 
-        printf("target_yaw REACHED\n");
+        printf("Target REACHED \n");
 
 
         // Check if enough pixels in FOV
         if (floor_count < floor_count_threshold) {
-          printf("TOO LITTLE GREEN \n");
+          printf("Too Little Green \n");
           float heading_inc;
           if (avoidance_heading_direction >= 0){
             heading_inc = 2.09;
@@ -455,7 +403,6 @@ void orange_avoider_guided_periodic(void)
         }else{
 
             if (confidence == 1){
-              printf("NEW STATE: 2\n");
               navigation_state = CENTER_TARGET;
             } else {
               navigation_state = SEARCH_FOR_SAFE_HEADING;
@@ -467,8 +414,8 @@ void orange_avoider_guided_periodic(void)
 
     break;
     case CENTER_TARGET:
-    	printf("2");
-      //
+      printf("CENTER_TARGET: ");
+
       if (rotating == 0){
     	  center_heading_change = dist_func[0];
 		  target_yaw = current_heading + center_heading_change;
@@ -477,32 +424,23 @@ void orange_avoider_guided_periodic(void)
 		  increase_nav_heading(oag_heading_rate);
 		  yaw_diff = target_yaw-current_heading;
 		  rotating = 1;
-		  printf("STATE 2: center_target_yaw: %f \n", DegOfRad(target_yaw));
+
       }else{
     	  yaw_diff = target_yaw-current_heading;
-  //      float y_func = powf(2.0, (-2.0+sqrtf(DegOfRad(yaw_diff)*DegOfRad(yaw_diff))/20.0));
+    	  printf("target, current, diff: %f, %f, %f \n",DegOfRad(target_yaw), DegOfRad(current_heading), DegOfRad(yaw_diff));
+
 		  float y_func = 0.0077 * (yaw_diff*yaw_diff) + 0.8462 * sqrtf(yaw_diff*yaw_diff);
-  //      printf("y_func: %f \n", DegOfRad(oag_heading_rate)*y_func);
 		  if (abs(DegOfRad(yaw_diff)) < 25){
 			  increase_nav_heading(oag_heading_rate * y_func * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-			  printf("y_func: %f \n", DegOfRad(oag_heading_rate)*y_func);
 		  } else {
 			  increase_nav_heading(oag_heading_rate * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-  //          printf(" second: %f", oag_heading_rate * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
 		  }
-//		  yaw_diff = target_yaw-current_heading;
-//		  if (sqrtf(yaw_diff*yaw_diff) > oag_heading_rate){
-//			increase_nav_heading(oag_heading_rate * sqrtf(yaw_diff*yaw_diff)/yaw_diff);
-//		  } else {
-//			increase_nav_heading(yaw_diff);
-//		  };
 
-		  printf("STATE 2: center_yaw_diff: %f , %f\n",  DegOfRad(target_yaw-current_heading), DegOfRad(current_heading));
       }
 
       if (yaw_diff > -margin && yaw_diff < margin){
     	  rotating = 0;
-    	  printf("STATE 2: center_target_yaw REACHED\n");
+    	  printf("Target REACHED\n");
     	  navigation_state = UPDATE_WP;
 		}
 
@@ -511,18 +449,18 @@ void orange_avoider_guided_periodic(void)
 
     //4
     case UPDATE_WP:
-      printf("3");
+      printf("UPDATE_WP: ");
       // stop
       if (dist_func[1] < 1) {
         navigation_state = SEARCH_FOR_SAFE_HEADING;
       } else {
+    	printf("Updating WP_TRAJECTORY\n");
         moveWaypointForward(WP_TRAJECTORY, dist_func[1]);
         dist_new = dist_func[1];
         while (!InsideObstacleZone(WaypointX(WP_TRAJECTORY),WaypointY(WP_TRAJECTORY)) && dist_new > 1){
           dist_new -= 0.3;
           moveWaypointForward(WP_TRAJECTORY, dist_new);
         }
-        printf("dist_new: %f\n", dist_new);
         if (dist_new < 1) {
             navigation_state = SEARCH_FOR_SAFE_HEADING;
         } else {
@@ -677,7 +615,6 @@ float dist_to_wp(uint8_t waypoint)
   float diff_T = sqrtf(diff_x*diff_x + diff_y*diff_y);
   return diff_T;
 }
-
 
 
 
