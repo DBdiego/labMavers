@@ -368,7 +368,7 @@ void orange_avoider_guided_periodic(void)
         rotating = 1;
 
       }else{
-    	  yaw_diff = fmod((target_yaw-current_heading + 360), 360);
+    	  yaw_diff = fmod((target_yaw-current_heading + 2*3.141592), 2*3.141592);
     	  printf("target, current, diff: %f, %f, %f \n",DegOfRad(target_yaw), DegOfRad(current_heading), DegOfRad(yaw_diff));
 		  float y_func = 0.0077 * (yaw_diff*yaw_diff) + 0.8462 * sqrtf(yaw_diff*yaw_diff);
 
